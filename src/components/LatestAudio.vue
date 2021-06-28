@@ -3,9 +3,9 @@
         <table>
             <tr>
                 <td/>
-                <th>Feedback</th>
-                <th>Recordings</th>
-                <th>Total</th>
+                <th>Feedback&nbsp;</th>
+                <th>&nbsp;Reviewed&nbsp;</th>
+                <th>&nbsp;Received</th>
             </tr>
             <tr>
                 <th>Your Analysis</th>
@@ -110,40 +110,26 @@ export default {
             }                
         },
         updateUrl() {    
-
-            const audioMetadataText = `{
-                "url":"http//amplio.org",
-                "uuid":"2132e-21e1212-12ee-12544554",
-                "region":"afar",
-                "district":"King",
-                "community":"Ballard",
-                "group":"none",
-                "listening_model":"nope",
-                "others_recordings":100,
-                "users_recordings":45,	
-                "others_feedback":20,
-                "users_feedback":11	
-            }`
+            const audioMetadataText ='{"uuid": "43b79a16-e7d5-58ea-95b1-6db1a23b7121", "region": "Afar", "district": "Leleda", "community": "Fentigera", "group": "121/1", "listening_model": "Group", "others_feedback": 2, "others_recordings": 2, "users_feedback": 3, "users_recordings": 1, "url": "https://downloads.amplio.org/e6555298-baf5-4230-8226-f2783ed15649/deployment-1/aar/43b79a16-e7d5-58ea-95b1-6db1a23b7121.mp3"}'
             this.audioMetadata = JSON.parse(audioMetadataText);
-
             console.log("requesting new url");
-            Vue.axios.get('https://script.google.com/macros/s/AKfycby2e2sfOQGYb1SATDrhtUXf8dAEvMmbylQYyHiEdx3aF7oOX983xcG0EQ-Jbc_WHI73iQ/exec')
-            .then(response=>{
-                this.url=response.data;
+            // Vue.axios.get('https://script.google.com/macros/s/AKfycby2e2sfOQGYb1SATDrhtUXf8dAEvMmbylQYyHiEdx3aF7oOX983xcG0EQ-Jbc_WHI73iQ/exec')
+            // .then(response=>{
+                this.url=this.audioMetadata.url;
                 this.filename = unescape(this.url.substring(this.url.lastIndexOf('/')+1)); 
                 this.fullyLoaded = false;
                 this.$refs.audio.load();
                 this.setAudioFocus();
-                console.log("new URL:"+response);
-            })
+                console.log("new URL:"+this.audioMetadata.url);
+            // })
         },
         submitUrl() {
             const payload = "url="+this.url;
             console.log("sending: ", payload);
-            Vue.axios.get('https://script.google.com/macros/s/AKfycby2e2sfOQGYb1SATDrhtUXf8dAEvMmbylQYyHiEdx3aF7oOX983xcG0EQ-Jbc_WHI73iQ/exec?'+payload)
-            .then(response =>{
-               console.log("response: ",response);
-            })
+            // Vue.axios.get('https://script.google.com/macros/s/AKfycby2e2sfOQGYb1SATDrhtUXf8dAEvMmbylQYyHiEdx3aF7oOX983xcG0EQ-Jbc_WHI73iQ/exec?'+payload)
+            // .then(response =>{
+            //    console.log("response: ",response);
+            // })
         },
         submitAndUpdate() {
             //deal with this form submission test later: this.submitUrl();
