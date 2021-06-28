@@ -1,5 +1,13 @@
 <template>
   <div id="app" ref="top" @keydown.esc="escape">
+    <div id="nav">
+      <router-link to="/">Home</router-link> |
+      <router-link to="/about">About</router-link> |
+      <router-link to="/login">Login</router-link> |
+      <button @click="logout">Logout</button>
+    </div>
+    <router-view />
+
     <img alt="Amplio logo" src="./assets/logo.png" width="256" height="40" />
 
     <div id="modal">
@@ -291,6 +299,15 @@ export default {
     };
   },
   methods: {
+    async logout() {
+      this.isUserSignedIn();
+      alert('logout');
+      try {
+          await Auth.signOut();
+      } catch (error) {
+          alert(error.message);
+      }
+    },
     async isUserSignedIn() {
       try {
           const userObj = await Auth.currentAuthenticatedUser();
