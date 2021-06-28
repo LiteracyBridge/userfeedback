@@ -1,21 +1,41 @@
 <template>
     <div>
-<!--    <p>
-            <a tabindex="-1" :href="url" target="_blank">{{filename}}</a>
-        </p>  
--->
+        <table>
+            <tr>
+                <td/>
+                <th>Feedback</th>
+                <th>Recordings</th>
+                <th>Total</th>
+            </tr>
+            <tr>
+                <th>Your Analysis</th>
+                <td>{{users_feedback}}</td>
+                <td>{{users_recordings}}</td>
+                <td rowspan="2">1645</td>
+            </tr>
+            <tr>
+                <th>Other Analysis</th>
+                <td>{{others_feedback}}</td>
+                <td>{{others_recordings}}</td>
+            </tr>
+        </table>
         <div tabindex="0" class="noFocusOutline" ref="audioDiv" @keydown="checkKey">
             <audio ref="audio" @timeupdate="checkLoop" @canplaythrough="loaded" tabindex="-1" controls preload="auto" autoplay :src="url">
                 Your browser doesn't support the HTML5 audio element.
             </audio>
         </div>
-        <div>
-            <span v-if="this.readyToLoop()">Looping  </span><span>{{loopRangeText}}</span>
+        <div v-if="this.fullyLoaded">
+            <span style="font-weight:bold">Location:</span> {{audioMetadata.community}}, {{audioMetadata.district}}, {{audioMetadata.region}} 
+            <span style="font-weight:bold"> || Model:</span> {{audioMetadata.listening_model}} 
+            <span style="font-weight:bold"> || Group:</span> {{audioMetadata.group}} 
         </div>
         <div v-if="this.fullyLoaded">
-            Speed: {{speed}}  
+            <span style="font-weight:bold">Speed:</span>  {{speed}}  
+            <span v-if="this.readyToLoop()" style="font-weight:bold"> || Looping  </span><span>{{loopRangeText}}</span>
         </div>
-        <div v-else>
+        <div>
+        </div>
+        <div v-if="!this.fullyLoaded">
             Loading...
         </div>
     </div>    
@@ -30,6 +50,7 @@ export default {
     name:"LatestAudio",
     data() {
         return {
+            audioMetadata:undefined,
             url:undefined,
             speed:1,
             fullyLoaded:false,
@@ -88,7 +109,23 @@ export default {
                 }
             }                
         },
-        updateUrl() {
+        updateUrl() {    
+
+            const audioMetadataText = `{
+                "url":"http//amplio.org",
+                "uuid":"2132e-21e1212-12ee-12544554",
+                "region":"afar",
+                "district":"King",
+                "community":"Ballard",
+                "group":"none",
+                "listening_model":"nope",
+                "others_recordings":100,
+                "users_recordings":45,	
+                "others_feedback":20,
+                "users_feedback":11	
+            }`
+            this.audioMetadata = JSON.parse(audioMetadataText);
+
             console.log("requesting new url");
             Vue.axios.get('https://script.google.com/macros/s/AKfycby2e2sfOQGYb1SATDrhtUXf8dAEvMmbylQYyHiEdx3aF7oOX983xcG0EQ-Jbc_WHI73iQ/exec')
             .then(response=>{
@@ -105,7 +142,7 @@ export default {
             console.log("sending: ", payload);
             Vue.axios.get('https://script.google.com/macros/s/AKfycby2e2sfOQGYb1SATDrhtUXf8dAEvMmbylQYyHiEdx3aF7oOX983xcG0EQ-Jbc_WHI73iQ/exec?'+payload)
             .then(response =>{
-                console.log("response: ",response);
+               console.log("response: ",response);
             })
         },
         submitAndUpdate() {
@@ -196,9 +233,11 @@ export default {
             return String(min) + ":" + String(sec).padStart(2,"0");
         }
     },
-    mounted() {
-        this.updateUrl();
+    mounted() {        
         a = this.$refs.audio;
+        if(this.$route.path=='/app') {
+            this.updateUrl();
+        }
     },
     computed: {
         audioUrl() {
@@ -213,6 +252,34 @@ export default {
                 }
             }
             return s;
+        },
+        others_feedback() {
+            var resp="";
+            if (this.audioMetadata) {
+                resp = this.audioMetadata.others_feedback;
+            }
+            return resp;
+        },
+        others_recordings() {
+            var resp="";
+            if (this.audioMetadata) {
+                resp = this.audioMetadata.others_recordings;
+            }
+            return resp;
+        },
+        users_feedback() {
+            var resp="";
+            if (this.audioMetadata) {
+                resp = this.audioMetadata.users_feedback;
+            }
+            return resp;
+        },
+        users_recordings() {
+            var resp="";
+            if (this.audioMetadata) {
+                resp = this.audioMetadata.users_recordings;
+            }
+            return resp;
         }
     }
 }
@@ -220,5 +287,8 @@ export default {
 <style scoped>
 .noFocusOutline {
     outline: 0px solid transparent;
+}
+td {
+  text-align: center;
 }
 </style>
