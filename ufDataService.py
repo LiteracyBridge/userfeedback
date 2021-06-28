@@ -160,13 +160,13 @@ def get_uf_data(user_email, program, deployment_number, language):
     progress=get_progress(connection,user_email,program,deployment_number,language)
     all_data.update(progress)
 
-    # Hardcoding this little dictionary until I know what database tables give us this info
-    program_to_uuid = {}
-    program_to_uuid.update({"CARE-ETH-GIRLS":"e6555298-baf5-4230-8226-f2783ed15649"})
-    program_to_uuid.update({"CARE-ETH-BOYS":"24fdd340-a6dc-453f-a94c-6260fdebdf9b"})
+    # # Hardcoding this little dictionary until I know what database tables give us this info
+    # program_to_uuid = {}
+    # program_to_uuid.update({"CARE-ETH-GIRLS":"e6555298-baf5-4230-8226-f2783ed15649"})
+    # program_to_uuid.update({"CARE-ETH-BOYS":"24fdd340-a6dc-453f-a94c-6260fdebdf9b"})
 
     #form the URL
-    url = "https://downloads.amplio.org/" + program_to_uuid[program] + "/deployment-" + deployment_number
+    url = "https://downloads.amplio.org/" + program + "/deployment-" + deployment_number
     url += "/" + language + "/" + uuid + ".mp3"
     all_data.update({"url":url})
 
