@@ -32,7 +32,7 @@ export default {
             try {
                 const user = await Auth.signIn(this.email, this.password);
                 console.log('user', user);
-                alert('Successfully logged in');
+                this.$router.push({ path: '/app' });
             } catch (error) {
                 alert(error.message);
             }
