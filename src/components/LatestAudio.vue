@@ -48,6 +48,7 @@ Vue.use(VueAxios,axios)
 var a;
 export default {
     name:"LatestAudio",
+    props: ["userEmail","program","deployment","language"],
     data() {
         return {
             audioMetadata:undefined,
@@ -110,18 +111,23 @@ export default {
             }                
         },
         updateUrl() {    
-            const audioMetadataText ='{"uuid": "43b79a16-e7d5-58ea-95b1-6db1a23b7121", "region": "Afar", "district": "Leleda", "community": "Fentigera", "group": "121/1", "listening_model": "Group", "others_feedback": 2, "others_recordings": 2, "users_feedback": 3, "users_recordings": 1, "url": "https://downloads.amplio.org/e6555298-baf5-4230-8226-f2783ed15649/deployment-1/aar/43b79a16-e7d5-58ea-95b1-6db1a23b7121.mp3"}'
-            this.audioMetadata = JSON.parse(audioMetadataText);
             console.log("requesting new url");
-            // Vue.axios.get('https://script.google.com/macros/s/AKfycby2e2sfOQGYb1SATDrhtUXf8dAEvMmbylQYyHiEdx3aF7oOX983xcG0EQ-Jbc_WHI73iQ/exec')
-            // .then(response=>{
+            const request = "https://ckz0f72fjf.execute-api.us-west-2.amazonaws.com/default/ufDataService?"
+                + "email=" + this.userEmail
+                + "&program=" + this.program
+                + "&deployment=" + this.deployment
+                + "&language=" + this.language;
+            Vue.axios.get(request,{headers: {'Authorization': `${this.$token}`}})
+            .then(response=>{
+                console.log(response.data);
+                this.audioMetadata = response.data;
                 this.url=this.audioMetadata.url;
                 this.filename = unescape(this.url.substring(this.url.lastIndexOf('/')+1)); 
                 this.fullyLoaded = false;
                 this.$refs.audio.load();
                 this.setAudioFocus();
                 console.log("new URL:"+this.audioMetadata.url);
-            // })
+            })
         },
         submitUrl() {
             const payload = "url="+this.url;

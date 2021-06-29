@@ -68,8 +68,8 @@
     </div>
 
 
-
-    <latest-audio ref="audio" />
+    <!--TODO: remove hardcoded program/deployment/language and grab from the future 'settings' component -->
+    <latest-audio ref="audio" :userEmail="this.$route.query.email" deployment="1" program="CARE-ETH-GIRLS" language="aar"/>
     <div>
       <table style="text-align:left ">
         <tr>
