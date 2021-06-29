@@ -1,5 +1,5 @@
 <template>
-    <div class="container">
+    <div class="container" v-if="displayLogin">
         <form @submit.prevent="login">
             <h2>Login</h2>
             <input
@@ -19,12 +19,15 @@
 
 <script>
 import { Auth } from 'aws-amplify';
+import Vue from 'vue'
+
 export default {
     name: 'Login',
     data() {
         return {
             email: '',
             password: '',
+            displayLogin: false
         };
     },
     methods: {
@@ -32,11 +35,29 @@ export default {
             try {
                 const user = await Auth.signIn(this.email, this.password);
                 console.log('user', user);
-                this.$router.push({ path: '/app' });
+                this.isUserSignedIn();
             } catch (error) {
                 alert(error.message);
             }
         },
+        async isUserSignedIn() {
+            try {
+                const userObj = await Auth.currentAuthenticatedUser();
+                this.$user_email = userObj['attributes']['email'];
+                Vue.prototype.$token = userObj['signInUserSession']['idToken']['jwtToken']
+                console.log('Token ending: '+this.$token.substr(this.$token.length-5,4));
+                this.displayLogin = false;
+                this.$router.push({ path: '/app', query: { email: this.$user_email } })
+                console.log('User email: '+this.$user_email);
+            }
+            catch (err) {
+                this.displayLogin = true;
+                console.log(err);
+            }
+        }
     },
+    created() {
+        this.isUserSignedIn();
+    }
 };
 </script>

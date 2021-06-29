@@ -117,6 +117,10 @@ export default {
                 + "&program=" + this.program
                 + "&deployment=" + this.deployment
                 + "&language=" + this.language;
+            // Vue.axios.interceptors.request.use(request => {
+            //     console.log('Starting Request', JSON.stringify(request, null, 2))
+            //     return request
+            // });
             Vue.axios.get(request,{headers: {'Authorization': `${this.$token}`}})
             .then(response=>{
                 console.log(response.data);
