@@ -182,10 +182,10 @@ def lambda_handler(event, context):
     program = event['queryStringParameters']['program']
     deployment = str(event['queryStringParameters']['deployment'])
     language = event['queryStringParameters']['language']
-    print('email:'+email)
-    print('program:'+program)
-    print('deployment:'+deployment)
-    print('language:'+language)
+    # print('email:'+email)
+    # print('program:'+program)
+    # print('deployment:'+deployment)
+    # print('language:'+language)
     
     # Get body of response object
     result = get_uf_data(email,program,deployment,language)
