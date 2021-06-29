@@ -109,10 +109,10 @@ def sql_from_body(body):
     for key in submit_responses:
         value = submit_responses[key]
         if isinstance(value,list) and len(value)>0:
-            value_one_str = ';'.join(value)
-            set_clause += key + "='" + value_one_str + "',"
+            value_one_str = ';'.join(value).replace("'",'"') # change ' to " for postgresql 
+            set_clause += key + "='" + value_one_str+ "'," 
         elif not isinstance(value,list):
-            set_clause += key + "='" + str(value) + "',"
+            set_clause += key + "='" + str(value).replace("'",'"') + "',"  # replace to change ' to " for postgresql
     command = 'UPDATE uf_analysis ' + set_clause.rstrip(",") + " WHERE message_uuid = '" + body['uuid'] +"'"
     return command
 
