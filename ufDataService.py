@@ -14,7 +14,7 @@ from pg8000 import Connection, Cursor
 
 def _get_secret() -> dict:
     # Name of the secrets in secrets manager.
-    secret_name = "lb_stats_access2"
+    secret_name = "lb_stats_test" #lb_stats_access2
     region_name = "us-west-2"
 
     result = None
@@ -127,6 +127,12 @@ def get_uuid_metadata(connection,uuid):
     resp.update({"listening_model":sqlmeta[4]})
     return resp
 
+def num_from_array(array):
+    if len(array) == 0:
+        return 0
+    else:
+        return array[0][2]
+
 
 def get_progress(connection,user_email,program,deployment_number,language):
     resp = {}
@@ -139,11 +145,14 @@ def get_progress(connection,user_email,program,deployment_number,language):
                     GROUP BY (analyst_email=:user),is_useless
                     order by (analyst_email=:user),is_useless'''
     sqlprogress=connection.run(command,user=user_email,program=program,deployment_number=deployment_number,language=language)
-    if len(sqlprogress) != 0:
-        resp.update({"others_feedback":sqlprogress[0][2]})
-        resp.update({"others_recordings":(sqlprogress[0][2] + sqlprogress[1][2])}) # useless + not useless
-        resp.update({"users_feedback":sqlprogress[2][2]})
-        resp.update({"users_recordings":(sqlprogress[2][2] + sqlprogress[3][2])}) # useless + not useless
+    other_feedback = num_from_array(list(filter(lambda r:r[0]==False and r[1]==False,sqlprogress)))
+    other_useless = num_from_array(list(filter(lambda r:r[0]==False and r[1]==True,sqlprogress)))
+    user_feedback = num_from_array(list(filter(lambda r:r[0]==True and r[1]==False,sqlprogress)))
+    user_useless = num_from_array(list(filter(lambda r:r[0]==True and r[1]==True,sqlprogress)))
+    resp.update({"others_feedback":other_feedback})
+    resp.update({"others_recordings":(other_feedback + other_useless)})
+    resp.update({"users_feedback":user_feedback})
+    resp.update({"users_recordings":(user_feedback + user_useless)})
     return resp
 
 
@@ -159,11 +168,6 @@ def get_uf_data(user_email, program, deployment_number, language):
  
     progress=get_progress(connection,user_email,program,deployment_number,language)
     all_data.update(progress)
-
-    # # Hardcoding this little dictionary until I know what database tables give us this info
-    # program_to_uuid = {}
-    # program_to_uuid.update({"CARE-ETH-GIRLS":"e6555298-baf5-4230-8226-f2783ed15649"})
-    # program_to_uuid.update({"CARE-ETH-BOYS":"24fdd340-a6dc-453f-a94c-6260fdebdf9b"})
 
     #form the URL
     url = "https://downloads.amplio.org/" + program + "/deployment-" + deployment_number
@@ -207,5 +211,5 @@ if __name__ == '__main__':
                         'language': 'aar'}
                         }
         print(lambda_handler(submit_event, None))
-
+        
     test_main()
