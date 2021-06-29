@@ -14,7 +14,7 @@ from pg8000 import Connection, Cursor
 
 def _get_secret() -> dict:
     # Name of the secrets in secrets manager.
-    secret_name = "lb_stats_test" #lb_stats_access2
+    secret_name = "lb_stats_access2" #lb_stats_test
     region_name = "us-west-2"
 
     result = None
