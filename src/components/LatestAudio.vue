@@ -1,43 +1,71 @@
 <template>
     <div>
-        <table>
-            <tr>
-                <td/>
-                <th>Feedback&nbsp;</th>
-                <th>&nbsp;Reviewed&nbsp;</th>
-                <th>&nbsp;Received</th>
+        <table width="100%">
+            <tr> 
+                <td rowspan="2" class="totalstat">
+                    <span>1500</span>
+                    <br/>
+                    <span>Total received</span>
+                </td>
+
+                <td class="stats">
+                    <span>{{users_analyzed}}</span>
+                    <span>Analyzed by you</span>
+                </td>
+                <td class="stats">
+                    <span>{{users_feedback}}</span>
+                    <span>Feedback</span>
+                </td>
+                <td class="stats">
+                    <span>{{users_notFeedback}}</span>
+                    <span>Not Feedback</span>
+                </td>
             </tr>
             <tr>
-                <th>Your Analysis</th>
-                <td>{{users_feedback}}</td>
-                <td>{{users_recordings}}</td>
-                <td rowspan="2">1645</td>
-            </tr>
-            <tr>
-                <th>Other Analysis</th>
-                <td>{{others_feedback}}</td>
-                <td>{{others_recordings}}</td>
+                <td class="stats">
+                    <span>{{total_analyzed}}</span>                    
+                    <span>Total Analyzed</span>
+                </td>
+                <td class="stats">
+                    <span>{{total_feedback}}</span>
+                    <span>Total Feedback</span>
+                </td>
+                <td class="stats">
+                    <span>{{total_notFeedback}}</span>
+                    <span>Total Not Feedback</span>
+                </td>
             </tr>
         </table>
-        <div tabindex="0" class="noFocusOutline" ref="audioDiv" @keydown="checkKey">
-            <audio ref="audio" @timeupdate="checkLoop" @canplaythrough="loaded" tabindex="-1" controls preload="auto" autoplay :src="url">
-                Your browser doesn't support the HTML5 audio element.
-            </audio>
-        </div>
-        <div v-if="this.fullyLoaded">
-            <span style="font-weight:bold">Location:</span> {{audioMetadata.community}}, {{audioMetadata.district}}, {{audioMetadata.region}} 
-            <span style="font-weight:bold"> || Model:</span> {{audioMetadata.listening_model}} 
-            <span style="font-weight:bold"> || Group:</span> {{audioMetadata.group}} 
-        </div>
-        <div v-if="this.fullyLoaded">
-            <span style="font-weight:bold">Speed:</span>  {{speed}}  
-            <span v-if="this.readyToLoop()" style="font-weight:bold"> || Looping  </span><span>{{loopRangeText}}</span>
-        </div>
-        <div>
-        </div>
-        <div v-if="!this.fullyLoaded">
-            Loading...
-        </div>
+        <br/>
+        Audio Player
+        <table style="border: 2px solid #ddd" width="100%">
+            <tr><td style="padding: 10px">
+                <span class="audiometadata">Filename: {{getUUID()}}</span>
+                <div tabindex="0" class="noFocusOutline" ref="audioDiv" @keydown="checkKey">
+                    <audio ref="audio" @timeupdate="checkLoop" @canplaythrough="loaded" tabindex="-1" controls preload="auto" autoplay :src="url">
+                        Your browser doesn't support the HTML5 audio element.
+                    </audio>
+                </div>
+                <div v-if="this.fullyLoaded" class="audiometadata">
+                    <span style="font-weight:bold">Location:</span> {{audioMetadata.community}}, {{audioMetadata.district}}, {{audioMetadata.region}} 
+                    <span style="font-weight:bold"> || Model:</span> {{audioMetadata.listening_model}} 
+                    <span style="font-weight:bold"> || Group:</span> {{audioMetadata.group}} 
+                </div>
+                <div v-if="this.fullyLoaded" class="audiometadata">
+                <!-- <div> -->
+                    <span style="font-weight:bold">Speed:</span>  {{speed}}  
+                    <span v-if="this.readyToLoop()" style="font-weight:bold"> || Looping  </span><span>{{loopRangeText}}</span>
+                </div>
+                <div v-if="!this.fullyLoaded">
+                    Loading...
+                </div>
+                <div style="text-align:right">
+                        <button type="button" class="button_warning" @click="$emit('handleUseless')">
+                        Mark as "Not Feedback"
+                        </button>
+                </div>
+            </td></tr>
+        </table>
     </div>    
 </template>
 <script>
@@ -49,6 +77,7 @@ var a;
 export default {
     name:"LatestAudio",
     props: ["userEmail","program","deployment","language"],
+    connected: true,
     data() {
         return {
             audioMetadata:undefined,
@@ -123,6 +152,11 @@ export default {
             // });
             Vue.axios.get(request,{headers: {'Authorization': `${this.$token}`}})
             .then(response=>{
+                console.log("axios then")
+                if (!this.connected) {
+                    this.$emit('network',true);
+                    this.connected = true;
+                }
                 console.log(response.data);
                 this.audioMetadata = response.data;
                 this.url=this.audioMetadata.url;
@@ -131,19 +165,11 @@ export default {
                 this.$refs.audio.load();
                 this.setAudioFocus();
                 console.log("new URL:"+this.audioMetadata.url);
+            }).catch(err => {
+                console.log("caught:"+err)
+                this.$emit('network',false);
+                this.connected = false;
             })
-        },
-        submitUrl() {
-            const payload = "url="+this.url;
-            console.log("sending: ", payload);
-            // Vue.axios.get('https://script.google.com/macros/s/AKfycby2e2sfOQGYb1SATDrhtUXf8dAEvMmbylQYyHiEdx3aF7oOX983xcG0EQ-Jbc_WHI73iQ/exec?'+payload)
-            // .then(response =>{
-            //    console.log("response: ",response);
-            // })
-        },
-        submitAndUpdate() {
-            //deal with this form submission test later: this.submitUrl();
-            this.updateUrl();
         },
         readyToLoop() {
             return  (this.loopEnd >0);  // If we want Start set explictly then add: && this.loopStart>0
@@ -227,6 +253,10 @@ export default {
             var min = Math.trunc(time/60);
             var sec = Math.round(time - min*60);
             return String(min) + ":" + String(sec).padStart(2,"0");
+        },
+        getUUID() {
+            if (this.audioMetadata)
+                return this.audioMetadata.uuid;
         }
     },
     mounted() {        
@@ -249,6 +279,24 @@ export default {
             }
             return s;
         },
+        total_analyzed() {
+            var resp="";
+            if (this.audioMetadata) {
+                return this.audioMetadata.others_recordings + this.audioMetadata.users_recordings;
+            }
+        },
+        total_feedback() {
+            var resp="";
+            if (this.audioMetadata) {
+                return this.audioMetadata.others_feedback + this.audioMetadata.users_feedback;
+            }
+        },
+        total_notFeedback() {
+            var resp="";
+            if (this.audioMetadata) {
+                return this.total_analyzed - this.total_feedback;
+            }
+        },
         others_feedback() {
             var resp="";
             if (this.audioMetadata) {
@@ -270,21 +318,73 @@ export default {
             }
             return resp;
         },
-        users_recordings() {
+        users_analyzed() {
             var resp="";
             if (this.audioMetadata) {
                 resp = this.audioMetadata.users_recordings;
             }
             return resp;
+        },
+        users_notFeedback() {
+            var resp="";
+            if (this.audioMetadata) {
+                return this.audioMetadata.users_recordings - this.audioMetadata.users_feedback;
+            }
         }
     }
 }
 </script>
+
 <style scoped>
+.audiometadata {
+    font-size: 0.80em;
+}
 .noFocusOutline {
     outline: 0px solid transparent;
 }
 td {
-  text-align: center;
+    text-align:center;
 }
+td.stats {
+    text-align:left;
+    background-color:lightgray;
+    padding:8px;
+    line-height: 20px;
+}
+td.stats span:first-child{
+    float:left;
+    font-weight: bolder;
+    font-size: 1.25em;
+    vertical-align:middle;
+}
+td.stats span:last-child{
+    float:right;
+    font-size: 0.85em; 
+    vertical-align:middle;
+}
+td.totalstat {
+    vertical-align: middle;
+    text-align:center;
+    padding:10px;
+    font-weight: bold;
+}
+td.totalstat span:first-child{
+    font-weight: bolder;
+    font-size: 1.15em;
+}
+
+.button_warning {
+  border: none;
+  color: #FFF;
+  background: red;
+  appearance: none;
+  font: inherit;
+  font-size: 1.2rem;
+  font-weight:bolder;
+  padding: .5em 1em;
+  border-radius: .3em;
+  cursor: pointer;
+}
+
+
 </style>
