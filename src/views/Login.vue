@@ -1,19 +1,27 @@
 <template>
-    <div class="container" v-if="displayLogin">
+    <div>
+      <div class="login" v-if="displayLogin" width="100%">
+        <table><tr><td><img alt="Amplio logo" src="../assets/logo.png" width="256" height="40" /></td></tr>
+        <tr><td>
         <form @submit.prevent="login">
-            <h2>Login</h2>
+            <p style="font-size:1.5em">User Feedback Processing</p>
+            <div>Email Address</div>
             <input
                 type="email"
                 v-model="email"
                 placeholder="Email address..."
-            />
+            /><div>Password</div>
             <input
                 type="password"
                 v-model="password"
                 placeholder="password..."
-            />
+            /><p/>
             <button>Login</button>
         </form>
+        </td></tr>
+        </table>
+      </div>
+      <div width="100%" class="bottombar">Copyright 2021 AMPLIO NETWORK</div>
     </div>
 </template>
 
@@ -52,6 +60,7 @@ export default {
             }
             catch (err) {
                 this.displayLogin = true;
+                alert(err);
                 console.log(err);
             }
         }
@@ -61,3 +70,23 @@ export default {
     }
 };
 </script>
+
+<style scoped>
+.login {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 90vh;
+    text-align:center;
+}
+
+.bottombar {
+    background-color:#289B6A;
+    color:white;
+    font-size:0.6em;
+    text-align:center;
+    line-height:40px;
+    vertical-align:middle;
+}
+
+</style>

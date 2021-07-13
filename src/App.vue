@@ -1,6 +1,5 @@
 <template>
-  <div id="app">
-    <img alt="Amplio logo" src="./assets/logo.png" width="256" height="40" />
+  <div id="app" width="100%">
     <router-view />
   </div>
 </template>
@@ -14,3 +13,15 @@ export default {
   },  
 };
 </script>
+
+<style>
+#app {
+  font-family: Helvetica, Avenir, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-align: center;
+  color: #2c3e50;
+  margin: 0;
+}
+
+</style>
