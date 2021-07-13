@@ -14,7 +14,7 @@ from pg8000 import Connection, Cursor
 
 def _get_secret() -> dict:
     # Name of the secrets in secrets manager.
-    secret_name = "lb_stats_access2" #lb_stats_test
+    secret_name = "lb_stats_test" #lb_stats_access2
     region_name = "us-west-2"
 
     result = None
@@ -93,50 +93,103 @@ def get_db_connection() -> Connection:
     return _db_connection
 
 
-########################################################################################################################
+########################################################################################################################    
 
-# noinspection SqlNoDataSourceInspection,SqlResolve
-def update_db(command):
+def questions(prog_code):
     connection: Connection = get_db_connection()
-    resp = connection.run(command) 
-    connection.close
-    return resp
+    delimiter = '***'
+    questions_fields=['id','name','question_label','type','data','data_other','required','constraint','relevant','choice_list']
+    questions_columns = questions_fields 
+    choices_fields=['choice_id','choice_list','choice_label','value']
+    choices_columns = choices_fields
+    
+    choices_columnsString = ""
+    questions_columnsString = ""
+    for c in choices_columns:
+        choices_columnsString += 'c."' + c + '",'
+    for c in questions_columns:
+        questions_columnsString += '"' + c + '",'
+
+    query = '''
+                SELECT ''' + choices_columnsString.rstrip(",") + ''' 
+                FROM uf_choices c
+                JOIN uf_questions q
+                ON c.choice_list = q.choice_list
+                WHERE q.prog_lang_depl= '%s'
+                ORDER by q."order",c."order";
  
-def sql_from_body(body): 
-    submit_responses = body['responses']
-    set_clause = 'SET is_useless=' + str(body['useless']) + ','
-    set_clause += "submit_time=NOW(),analyst_email='" + body['user_email'] + "',"
-    for key in submit_responses:
-        value = submit_responses[key]
-        if isinstance(value,list) and len(value)>0:
-            value_one_str = ';'.join(value).replace("'",'"') # change ' to " for postgresql 
-            set_clause += key + "='" + value_one_str+ "'," 
-        elif not isinstance(value,list):
-            set_clause += key + "='" + str(value).replace("'",'"') + "',"  # replace to change ' to " for postgresql
-    command = 'UPDATE uf_analysis ' + set_clause.rstrip(",") + " WHERE message_uuid = '" + body['uuid'] +"'"
-    return command
+                SELECT '%s';
+            ''' % (prog_code,delimiter) + '''
+                SELECT ''' + questions_columnsString.rstrip(",") + '''
+                FROM uf_questions
+                WHERE prog_lang_depl='%s'
+                ORDER BY "order";
+            ''' % (prog_code)
+
+    sqlResult=connection.run(query)
+
+    in_choices = True
+    choiceLists = {}
+    questions = []
+    for row in sqlResult:
+        if in_choices and row[0] == delimiter:
+            in_choices = False
+            continue
+        elif in_choices:
+            choice = {}
+            for (enum,value) in enumerate(row):
+                choice[choices_fields[enum]]=value
+            list_name = choice.pop('choice_list')
+            try:
+                choiceLists[list_name].append(choice)
+            except KeyError:
+                choiceLists[list_name] = [choice]
+        else:
+            question = {}
+            for (enum,value) in enumerate(row):
+                question[questions_fields[enum]]=value
+            choice_list_name = question.pop('choice_list')
+            if choice_list_name != '':
+                question['choices'] = choiceLists[choice_list_name]
+            relevant = question.pop('relevant')
+            if relevant != '' and relevant is not None:
+                choiceList = choiceLists[relevant]
+                choice = list(filter(lambda c:c['value']==question['name'],choiceList))
+                choice[0].update(question)
+            else:
+                questions.append(question)
+    return questions
+
 
 def lambda_handler(event, context):
     start = time.time_ns()
 
+    # Parse out query string params
+    program = event['queryStringParameters']['program']
+    deployment = str(event['queryStringParameters']['deployment'])
+    language = event['queryStringParameters']['language']
+
+    prog_code = program + '|' + language + "|" + deployment
+
     # Get body of response object
-    bodystring = event['body']
-    body = json.loads(bodystring)    
-    command = sql_from_body(body)
-    update_db(command)
+    result = questions(prog_code)
 
     #Return the response object
     return {
     "statusCode": 200,
-    "headers": {"Access-Control-Allow-Origin": "*","Content-Type":"application/json"}
+    "headers": {"Access-Control-Allow-Origin": "*","Content-Type":"application/json"},
+    "body": json.dumps(result)
     }
 
 
 if __name__ == '__main__':
     def test_main():
-        event_text = '{"body":{"uuid":"626c01b2-78a1-5233-99e9-7efa07478b99","user_email":"cliff@amplio.org","useless":true,"responses":{"transcription":"transcription goes here","resp_01":"endorsement","resp_02":"maybe","resp_03":"breastfeeding","resp_04":[],"resp_05":["myths"],"resp_06":[],"resp_07":[],"resp_08":["nofood","nutrition","latching","colostrum"],"resp_09":["guidance"],"resp_10":"more here","resp_11":[],"resp_12":[],"resp_13":[],"resp_14":[],"resp_15":[],"resp_16":[],"resp_17":[],"resp_18":[],"resp_19":[],"resp_20":[]}}}'
-        event = json.loads(event_text)
-        
-        lambda_handler(event, None)
 
+        submit_event = {'queryStringParameters': 
+                        {'program': 'CARE-ETH-GIRLS',
+                        'deployment': 1,\
+                        'language': 'aar'}
+                        }
+        print(lambda_handler(submit_event, None))
+    
     test_main()
