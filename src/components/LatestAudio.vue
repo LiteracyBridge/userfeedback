@@ -140,7 +140,6 @@ export default {
             }                
         },
         updateUrl() {    
-            console.log("requesting new url");
             const request = "https://ckz0f72fjf.execute-api.us-west-2.amazonaws.com/default/ufDataService?"
                 + "email=" + this.userEmail
                 + "&program=" + this.program
@@ -152,19 +151,21 @@ export default {
             // });
             Vue.axios.get(request,{headers: {'Authorization': `${this.$token}`}})
             .then(response=>{
-                console.log("axios then")
                 if (!this.connected) {
                     this.$emit('network',true);
                     this.connected = true;
                 }
-                console.log(response.data);
-                this.audioMetadata = response.data;
-                this.url=this.audioMetadata.url;
-                this.filename = unescape(this.url.substring(this.url.lastIndexOf('/')+1)); 
-                this.fullyLoaded = false;
-                this.$refs.audio.load();
-                this.setAudioFocus();
-                console.log("new URL:"+this.audioMetadata.url);
+                if (Object.keys(response.data).length == 0) {
+                    this.$emit('no_messages');
+                } else {
+                    this.audioMetadata = response.data;
+                    this.url=this.audioMetadata.url;
+                    this.filename = unescape(this.url.substring(this.url.lastIndexOf('/')+1)); 
+                    this.fullyLoaded = false;
+                    this.$refs.audio.load();
+                    this.setAudioFocus();
+                    console.log("new URL:"+this.audioMetadata.url);
+                }
             }).catch(err => {
                 console.log("caught:"+err)
                 this.$emit('network',false);
