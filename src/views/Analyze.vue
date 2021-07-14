@@ -115,7 +115,9 @@
     </td>
   </tr>
   <tr><td>
-      <latest-audio :key="audioKey" @no_messages="showNoMessages" @network="updateConnected" @handleUseless="handleUseless" ref="audio" :userEmail="this.$route.query.email" :deployment="selectedDeployment" :program="selectedProgramCode" :language="selectedLanguageCode"/>
+      <latest-audio :key="audioKey" @no_messages="showNoMessages" @network="updateConnected" @handleUseless="handleUseless" ref="audio" 
+      :userEmail="this.$route.query.email" :deployment="selectedDeployment" :program="selectedProgramCode" :language="selectedLanguageCode"
+      :totalReceivedMessages="totalReceivedMessages"/>
   </td></tr>
   <tr><td>
       <div ref="top">
@@ -239,7 +241,8 @@ export default {
       }],
       selectedProgramCode:"CARE-ETH-GIRLS",
       selectedDeployment:1,
-      selectedLanguageCode:"aar"
+      selectedLanguageCode:"aar",
+      totalReceivedMessages: 123 
     }
   },
   methods: {
@@ -348,7 +351,6 @@ export default {
       this.loadQuestions();
     },
     loadQuestions() {
-      this.resetFormAndAudio();
       //const generated = '[{"id": 1, "name": "transcription", "question_label": "Transcription", "type": "textarea", "data": "transcription", "data_other": "", "required": false, "constraint": ""}, {"id": 2, "name": "adult_child", "question_label": "Is the person speaking an adult or child?", "type": "radio", "data": "resp_01", "data_other": "", "required": false, "constraint": "", "choices": [{"choice_id": 1, "choice_label": "Adult", "value": "adult"}, {"choice_id": 2, "choice_label": "Child", "value": "child"}, {"choice_id": 3, "choice_label": "Unsure", "value": "unsure"}]}, {"id": 3, "name": "gender", "question_label": "Is the person speaking male or female?", "type": "radio", "data": "resp_02", "data_other": "", "required": false, "constraint": "", "choices": [{"choice_id": 4, "choice_label": "Male", "value": "male"}, {"choice_id": 5, "choice_label": "Female", "value": "female"}, {"choice_id": 6, "choice_label": "Unsure", "value": "unsure"}]}, {"id": 4, "name": "sentiment", "question_label": "Is the person speaking offering a ...", "type": "radio", "data": "resp_03", "data_other": "", "required": true, "constraint": "", "choices": [{"choice_id": 7, "choice_label": "Comment", "value": "comment"}, {"choice_id": 8, "choice_label": "Complaint", "value": "complaint"}, {"choice_id": 9, "choice_label": "Endorsement", "value": "endorsement"}, {"choice_id": 10, "choice_label": "Question", "value": "question"}, {"choice_id": 11, "choice_label": "Suggestion", "value": "suggestion"}, {"choice_id": 12, "choice_label": "Unsure", "value": "unsure"}]}, {"id": 5, "name": "topic", "question_label": "What is the topic of the message?", "type": "checkbox", "data": "resp_04", "data_other": "", "required": true, "constraint": "", "choices": [{"choice_id": 13, "choice_label": "Diarrhea Management", "value": "diarrhea", "id": 6, "name": "diarrhea", "question_label": "Select subtopic(s)", "type": "checkbox", "data": "resp_05", "data_other": "", "required": true, "constraint": "", "choices": [{"choice_id": 18, "choice_label": "ORS", "value": "ors"}, {"choice_id": 19, "choice_label": "Zinc", "value": "zinc"}, {"choice_id": 20, "choice_label": "Signs of Diarrhea", "value": "signs"}, {"choice_id": 21, "choice_label": "Feeding and Drinking", "value": "feeding"}]}, {"choice_id": 14, "choice_label": "Malaria Prevention", "value": "malaria", "id": 7, "name": "malaria", "question_label": "Select subtopic(s)", "type": "checkbox", "data": "resp_06", "data_other": "", "required": true, "constraint": "", "choices": [{"choice_id": 22, "choice_label": "LLINs", "value": "llins"}, {"choice_id": 23, "choice_label": "Signs and Symptoms", "value": "signs"}, {"choice_id": 24, "choice_label": "Myths about Malaria", "value": "myths"}, {"choice_id": 25, "choice_label": "Hygiene and Sitting Water", "value": "hygiene"}]}, {"choice_id": 15, "choice_label": "Handwashing", "value": "handwashing", "id": 8, "name": "handwashing", "question_label": "Select subtopic(s)", "type": "checkbox", "data": "resp_07", "data_other": "", "required": true, "constraint": "", "choices": [{"choice_id": 26, "choice_label": "Use of a Tippy-Tap", "value": "tippytap"}, {"choice_id": 27, "choice_label": "Buying vs. Making Soap", "value": "makingsoap"}, {"choice_id": 28, "choice_label": "Handwashing Technique", "value": "technique"}, {"choice_id": 29, "choice_label": "Times for Handwashing", "value": "times"}]}, {"choice_id": 16, "choice_label": "Safe Delivery", "value": "delivery", "id": 9, "name": "delivery", "question_label": "Select subtopic(s)", "type": "checkbox", "data": "resp_08", "data_other": "", "required": true, "constraint": "", "choices": [{"choice_id": 30, "choice_label": "Use of SBAs", "value": "sba"}, {"choice_id": 31, "choice_label": "Importance of ANC", "value": "anc"}, {"choice_id": 32, "choice_label": "When to Call a Doctor", "value": "calldoctor"}, {"choice_id": 33, "choice_label": "Planning for Delivery", "value": "planning"}]}, {"choice_id": 17, "choice_label": "Breastfeeding", "value": "breastfeeding", "id": 10, "name": "breastfeeding", "question_label": "Select subtopic(s)", "type": "checkbox", "data": "resp_09", "data_other": "", "required": true, "constraint": "", "choices": [{"choice_id": 34, "choice_label": "No food or water for 6 months", "value": "nofood6mos"}, {"choice_id": 35, "choice_label": "Introduction of solid foods", "value": "solidfood"}, {"choice_id": 36, "choice_label": "First breastmilk", "value": "firstmilk"}, {"choice_id": 37, "choice_label": "Problems with latching", "value": "latching"}]}]}, {"id": 11, "name": "cp", "question_label": "Is a child protection issue discussed?", "type": "radio", "data": "resp_10", "data_other": "", "required": true, "constraint": "", "choices": [{"choice_id": 38, "choice_label": "Yes", "value": "yes"}, {"choice_id": 39, "choice_label": "No", "value": "no"}, {"choice_id": 40, "choice_label": "Unsure", "value": "unsure"}]}, {"id": 12, "name": "action", "question_label": "Does this User Feedback message prompt any action?", "type": "radio", "data": "resp_11", "data_other": "resp_12", "required": true, "constraint": "", "choices": [{"choice_id": 41, "choice_label": "None", "value": "none"}, {"choice_id": 42, "choice_label": "Answer question in a future message", "value": "message"}, {"choice_id": 43, "choice_label": "Provide guidance to a community facilitator", "value": "guidance"}, {"choice_id": 44, "choice_label": "Clarify a confusing message", "value": "clarify"}]}]';
       //this.questions=JSON.parse(generated);
       const request = "https://ckz0f72fjf.execute-api.us-west-2.amazonaws.com/default/ufQuestions?"
@@ -363,6 +365,15 @@ export default {
       .then(response=>{
         console.log("got questions:");
         this.questions=response.data;
+        if (this.selectedProgramCode == 'CARE-ETH-GIRLS') {
+          this.totalReceivedMessages = 123;
+        } else if (this.selectedLanguageCode == 'en') {
+          this.totalReceivedMessages = 456;
+        } else if (this.selectedDeployment == 1) {
+          this.totalReceivedMessages = 199;
+        } else {
+          this.totalReceivedMessages = 567;
+        }
         if (!this.connected) {
             this.$emit('network',true);
             this.connected = true;
@@ -372,7 +383,8 @@ export default {
           console.log("caught:"+err)
           this.$emit('network',false);
           this.connected = false;
-      })
+      });
+      this.resetFormAndAudio();
     }
   },
   computed: {
