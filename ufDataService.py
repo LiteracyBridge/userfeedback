@@ -109,7 +109,7 @@ def get_next_uuid(connection, program, deployment_number, language):
                 ON CONFLICT (message_uuid) DO UPDATE SET start_time=NOW()
                 RETURNING message_uuid'''
     resp = connection.run(command,program=program,deployment_number=deployment_number,language=language,min_sec=MIN_SECONDS_FILTER)
-    return resp[0][0]
+    return resp
 
 
 def get_uuid_metadata(connection,uuid):
@@ -160,19 +160,21 @@ def get_uf_data(user_email, program, deployment_number, language):
     all_data = {} 
     connection: Connection = get_db_connection()
     
-    uuid = get_next_uuid(connection,program,deployment_number,language)
-    all_data.update({"uuid":uuid})
+    sqlResponse = get_next_uuid(connection,program,deployment_number,language)
+    # check if there are any uf_messages to process for this program/deployment/language
+    if len(sqlResponse) > 0:
+        uuid = sqlResponse[0][0]
+        all_data.update({"uuid":uuid})
+        metadata=get_uuid_metadata(connection,uuid)
+        all_data.update(metadata)
+    
+        progress=get_progress(connection,user_email,program,deployment_number,language)
+        all_data.update(progress)
 
-    metadata=get_uuid_metadata(connection,uuid)
-    all_data.update(metadata)
- 
-    progress=get_progress(connection,user_email,program,deployment_number,language)
-    all_data.update(progress)
-
-    #form the URL
-    url = "https://downloads.amplio.org/" + program + "/deployment-" + deployment_number
-    url += "/" + language + "/" + uuid + ".mp3"
-    all_data.update({"url":url})
+        #form the URL
+        url = "https://downloads.amplio.org/" + program + "/deployment-" + deployment_number
+        url += "/" + language + "/" + uuid + ".mp3"
+        all_data.update({"url":url})
 
     connection.close
     return all_data    
@@ -207,7 +209,7 @@ if __name__ == '__main__':
         submit_event = {'queryStringParameters': 
                         {'email':'cliff@amplio.org',
                         'program': 'CARE-ETH-GIRLS',
-                        'deployment': 1,\
+                        'deployment': 2,\
                         'language': 'aar'}
                         }
         print(lambda_handler(submit_event, None))
