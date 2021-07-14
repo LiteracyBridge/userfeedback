@@ -3,7 +3,7 @@
         <table width="100%">
             <tr> 
                 <td rowspan="2" class="totalstat">
-                    <span>1500</span>
+                    <span>{{totalReceivedMessages}}</span>
                     <br/>
                     <span>Total received</span>
                 </td>
@@ -76,7 +76,7 @@ Vue.use(VueAxios,axios)
 var a;
 export default {
     name:"LatestAudio",
-    props: ["userEmail","program","deployment","language"],
+    props: ["userEmail","program","deployment","language","totalReceivedMessages"],
     connected: true,
     data() {
         return {
