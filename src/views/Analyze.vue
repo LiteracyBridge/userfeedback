@@ -122,7 +122,7 @@
   <tr><td>
       <div ref="top">
         Feedback Form
-        <table width="100%" style="text-align:left;border: 2px solid #ddd;padding: 5px"">
+        <table width="100%" style="text-align:left;border: 2px solid #ddd;padding: 5px">
           <tr v-for="(question,count) in questions" :key="question.id">
               <td class="pad">
                   <p class="question">{{count+1}}. {{question.question_label}}
@@ -134,26 +134,34 @@
                   <div v-for="choice in question.choices" :key="choice.choice_id">
                       <input @click="uncheckSubChoices(choice.data)" :type="question.type" :name="question.name" :id="choice.choice_id" :ref="choice.choice_id" :value="choice.value" v-model="form.responses[question.data]" />
                       <label :for="choice.choice_id">{{choice.choice_label}}</label>
-                      <span v-if="choice.data_other">
-                          <input type="text" class="text_input" name="question.name+'other'" id="choice.choice_id+'other'" v-model="form.responses[choice.data_other]"/>
-                      </span>
                       <br />
                       <div  v-if="choice.choices && String(form.responses[question.data]).includes(choice.value)">
                         <label>{{choice.question_label}}</label><span v-if="choice.required" style="color: red">*</span>   
                         <div v-for="subchoice in choice.choices" :key="subchoice.choice_id" style="text-indent: 20px">
                             <input :type="choice.type" :name="choice.name" :id="choice.question_id" :value="subchoice.value" v-model="form.responses[choice.data]"/>
                             <label :for="subchoice.id">{{subchoice.choice_label}}</label>
-                            <span v-if="subchoice.data_other">
-                                <input type="text" class="text_input" name="choice.name+'other'" id="subchoice.choice_id+'other'" v-model="form.responses[subchoice.data_other]"/>
-                            </span>                    
                         </div>
+                      <div v-if="choice.data_other" style="text-indent: 20px">
+                          <input :type="choice.type" :name="choice.name" :id="choice.question_id+'-other'" value="other" v-model="form.responses[choice.data]"/>
+                          <label :for="choice.id+'-other'">Other</label>
+                          <input @focus="form.responses[choice.data].push('other')" type="text" class="text_input" name="choice.name+'-othertxt'" id="choice.choice_id+'-othertxt'" v-model="form.responses[choice.data_other]"/>
                       </div>
+
+                      </div>
+                  </div>
+                  <div v-if="question.data_other" :key="question.question_id+'-other'">
+                      <input :type="question.type" :name="question.name" :id="question.question_id+'-other'" :ref="question.question_id+'-other'" value="other" v-model="form.responses[question.data]" />
+                      <label :for="question.question_id+'-other'">Other</label>
+                      <span >
+                          <input @focus="form.responses[question.data].push('other')" type="text" class="text_input" name="question.name+'-othertxt'" id="question.question_id+'othertxt'" v-model="form.responses[question.data_other]"/>
+                      </span>
                   </div>
               </td>
           </tr>
           <tr>
             <td style="text-align: right">
-              <input type="button" class="button_submit" value="SUBMIT" @click="handleSubmit"/>
+              <input :disabled="requiredCompleted!=''" type="button" class="button_submit" value="SUBMIT" @click="handleSubmit"/>
+              <!-- {{requiredCompleted}} -->
             </td>
           </tr>
         </table>
@@ -259,8 +267,7 @@ export default {
     },
     uncheckSubChoices(responsecode) {
       if(responsecode) {
-        //console.log(responsecode);
-        var a = this.form.responses[responsecode]=[];
+        this.form.responses[responsecode]=[];
       }
     },
     showNoMessages() {
@@ -334,6 +341,7 @@ export default {
       }
     },
     escape() {
+      this.checkCompleted();
       if (this.showModal) {
         this.showModal = false;
       }
@@ -385,9 +393,36 @@ export default {
           this.connected = false;
       });
       this.resetFormAndAudio();
-    }
+    },
+    checkCompleted() {
+        let completed = "";
+        let questionNumber = 0;
+        for (var q of this.questions) {
+          questionNumber++;
+          if (q.required) {
+            if (this.form.responses[q.data].length == 0) {
+              completed += String(questionNumber) + ",";
+            }
+          }  
+          if (q.choices && q.choices.length > 0) {
+            for (var c of q.choices) {
+              //check if the subchoice would be required if its parent choice is checked 
+              if (c.required && String(this.form.responses[q.data]).includes(c.value)) {
+                //now check if this sub-choice has data
+                if (this.form.responses[c.data].length == 0) {
+                  completed += String(questionNumber) + "." + c.value + ",";
+                }
+              }
+            }
+          }
+        }
+        return completed.substring(0, completed.length - 1);
+    },
   },
   computed: {
+    requiredCompleted() {
+      return this.checkCompleted();
+    },
     deployments() {
       var program = this.programs.filter((p)=>{
         return p.code==this.selectedProgramCode;
@@ -549,6 +584,10 @@ body {
   border-radius: .3em;
   cursor: pointer;
   margin: 10px;
+}
+
+:disabled {
+  background-color: #D8D8D8;
 }
 
 .modal {
