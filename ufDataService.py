@@ -114,17 +114,21 @@ def get_next_uuid(connection, program, deployment_number, language):
 
 def get_uuid_metadata(connection,uuid):
     resp = {}
-    command =    '''SELECT region,district,communityname,groupname,listening_model
-                    FROM public.uf_messages m
+    command =    '''SELECT title,region,district,communityname,groupname,listening_model
+                    FROM uf_messages m
                     JOIN recipients r
                     ON m.recipientid = r.recipientid
+                    LEFT JOIN contentmetadata2 c
+                    ON m.relation = c.contentid
                     WHERE message_uuid = :uuid'''
+
     sqlmeta=connection.run(command,uuid=uuid)[0]
-    resp.update({"region":sqlmeta[0]})
-    resp.update({"district":sqlmeta[1]})
-    resp.update({"community":sqlmeta[2]})
-    resp.update({"group":sqlmeta[3]})
-    resp.update({"listening_model":sqlmeta[4]})
+    resp.update({"title":sqlmeta[0]})
+    resp.update({"region":sqlmeta[1]})
+    resp.update({"district":sqlmeta[2]})
+    resp.update({"community":sqlmeta[3]})
+    resp.update({"group":sqlmeta[4]})
+    resp.update({"listening_model":sqlmeta[5]})
     return resp
 
 def num_from_array(array):
@@ -209,7 +213,7 @@ if __name__ == '__main__':
         submit_event = {'queryStringParameters': 
                         {'email':'cliff@amplio.org',
                         'program': 'CARE-ETH-GIRLS',
-                        'deployment': 2,\
+                        'deployment': 1,\
                         'language': 'aar'}
                         }
         print(lambda_handler(submit_event, None))
