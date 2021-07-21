@@ -95,7 +95,7 @@ def get_db_connection() -> Connection:
 
 ########################################################################################################################    
 
-def questions(prog_code):
+def questions(program,language,deployment):
     connection: Connection = get_db_connection()
     delimiter = '***'
     questions_fields=['id','name','question_label','type','data','data_other','required','constraint','relevant','choice_list']
@@ -115,16 +115,21 @@ def questions(prog_code):
                 FROM uf_choices c
                 JOIN uf_questions q
                 ON c.choice_list = q.choice_list
-                WHERE q.prog_lang_depl= '%s'
+                AND c.programid = q.programid
+                WHERE q.programid = '%s' 
+                AND q.language = '%s'
+                AND q.deploymentnumber = %s
                 ORDER by q."order",c."order";
  
                 SELECT '%s';
-            ''' % (prog_code,delimiter) + '''
+            ''' % (program,language,deployment,delimiter) + '''
                 SELECT ''' + questions_columnsString.rstrip(",") + '''
                 FROM uf_questions
-                WHERE prog_lang_depl='%s'
+                WHERE programid = '%s' 
+                AND language = '%s'
+                AND deploymentnumber = %s
                 ORDER BY "order";
-            ''' % (prog_code)
+            ''' % (program,language,deployment)
 
     sqlResult=connection.run(query)
 
@@ -169,10 +174,8 @@ def lambda_handler(event, context):
     deployment = str(event['queryStringParameters']['deployment'])
     language = event['queryStringParameters']['language']
 
-    prog_code = program + '|' + language + "|" + deployment
-
     # Get body of response object
-    result = questions(prog_code)
+    result = questions(program,language,deployment)
 
     #Return the response object
     return {
