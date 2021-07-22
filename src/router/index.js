@@ -18,6 +18,20 @@ const routes = [
     name: 'Login',
     component: () =>
         import(/* webpackChunkName: "login" */ '../views/Login.vue'),
+},
+{
+  path: '/register',
+  component: () => import(/* webpackChunkName: "sign-up" */ '../views/SignUp.vue'),
+  meta: {
+    layout: 'login'
+  }
+},
+{
+  path: '/password-reset',
+  component: () => import(/* webpackChunkName: "password-reset" */ '../views/PasswordReset.vue'),
+  meta: {
+    layout: 'login'
+  },
 }
 ]
 
