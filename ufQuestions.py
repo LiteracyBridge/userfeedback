@@ -98,7 +98,7 @@ def get_db_connection() -> Connection:
 def questions(program,language,deployment):
     connection: Connection = get_db_connection()
     delimiter = '***'
-    questions_fields=['id','name','question_label','type','data','data_other','required','constraint','relevant','choice_list']
+    questions_fields=['id','name','question_label','type','data','data_other','required','constraint','relevant','choice_list','default','hint']
     questions_columns = questions_fields 
     choices_fields=['choice_id','choice_list','choice_label','value']
     choices_columns = choices_fields
@@ -167,6 +167,13 @@ def questions(program,language,deployment):
 
 
 def lambda_handler(event, context):
+    #TODO: Error Handling!  
+    #  For instance, if the choice_list in the uf_questions table doesn't have a match
+    #  for the same programid in the uf_choices table, then the questions function
+    #  above will throw a KeyError.  That shouldn't happen, but if it does, we need
+    #  to return a 200 status code with some indication to the Vue App that something
+    #  went wrong other than a network connection issue -- which is how Vue currently
+    #  interprets all errors. 
     start = time.time_ns()
 
     # Parse out query string params
@@ -189,7 +196,7 @@ if __name__ == '__main__':
     def test_main():
 
         submit_event = {'queryStringParameters': 
-                        {'program': 'CARE-ETH-GIRLS',
+                        {'program': 'CARE-ETH-BOYS',
                         'deployment': 1,\
                         'language': 'aar'}
                         }
