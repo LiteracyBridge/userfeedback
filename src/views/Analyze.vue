@@ -164,8 +164,28 @@
           </tr>
           <tr>
             <td style="text-align: right">
-              <input :disabled="requiredCompleted!=''" type="button" class="button_submit" value="SUBMIT" @click="handleSubmit"/>
-              <!-- {{requiredCompleted}} -->
+              <div class="float-right">
+                <v-tooltip
+                  v-if="requiredCompleted  != ''"
+                  :text="'Questions still required:  #'+checkCompleted()"
+                  position="right"
+                  class="my-2 ml-2"
+                  :width="200"
+                >
+                  <font-awesome-icon
+                    class="text-orange-600"
+                    icon="exclamation-circle"
+                  />
+                </v-tooltip>
+                <VButton
+                  label="SUBMIT"
+                  variant="success"
+                  :disabled="requiredCompleted != ''"
+                  :iconL="submitStatus === 'submitting' ? 'spinner' : ''"
+                  :iconLPulse="submitStatus === 'submitting'"
+                  @click="handleSubmit"
+                />
+              </div>
             </td>
           </tr>
         </table>
@@ -189,13 +209,18 @@ import axios from 'axios'
 import Vue from 'vue'
 import VueAxios from 'vue-axios'
 import VTooltip from '@/components/VTooltip'
+import VInput from '@/components/VInput'
+import VButton from '@/components/VButton';
+
 Vue.use(VueAxios,axios)
 
 export default {
   name: "Home",
   components: {
     LatestAudio,   //,Question
-    VTooltip
+    VTooltip,
+    VInput,
+    VButton
   },
   data() {
     return {
@@ -204,6 +229,7 @@ export default {
       showModal: false,
       noMessages: false,
       showSubmitModal: false,
+      submitStatus: null,
       questions: [],
       form: {
         uuid: '',
@@ -293,6 +319,7 @@ export default {
       this.handleSubmit();
     },
     handleSubmit() {
+      this.submitStatus = 'submitting';
       //First, add UUID and email to the form data before we submit it.
       this.form.user_email = this.$route.query.email;
       this.form.uuid = this.$refs.audio.getUUID();
@@ -321,6 +348,7 @@ export default {
           console.log(err);
           this.connected = false;
       });
+      this.submitStatus = '';
     },
     resetFormAndAudio() {
       //there's got to be an easier way!
@@ -428,7 +456,10 @@ export default {
             }
           }
         }
-        return completed.substring(0, completed.length - 1);
+        if (completed.length > 1) {
+          completed = completed.substring(0, completed.length - 1);
+        }
+        return completed;
     },
   },
   computed: {
