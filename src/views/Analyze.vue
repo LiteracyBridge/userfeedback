@@ -414,13 +414,13 @@ export default {
         console.log("got questions:");
         this.questions=response.data;
         if (this.selectedProgramCode == 'CARE-ETH-GIRLS') {
-          this.totalReceivedMessages = 123;
+          this.totalReceivedMessages = 173; //actual number
         } else if (this.selectedLanguageCode == 'en') {
-          this.totalReceivedMessages = 456;
+          this.totalReceivedMessages = 456;  // made-up number for made-up deployment 
         } else if (this.selectedDeployment == 1) {
-          this.totalReceivedMessages = 199;
+          this.totalReceivedMessages = 169; //actual number
         } else {
-          this.totalReceivedMessages = 567;
+          this.totalReceivedMessages = 0; // made-up number for made-up deployment
         }
         if (!this.connected) {
             this.$emit('network',true);
