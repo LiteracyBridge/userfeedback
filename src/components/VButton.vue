@@ -7,7 +7,7 @@
     :aria-disabled="disabled"
     :aria-label="label ? label : ariaLabel"
     :class="[baseClass, variant, active ? 'active' : '', colors]"
-    class="flex items-center"
+    class="items-right"
     @click="handleClick"
     @keyup.enter="handleClick"
     @keyup.space="handleClick"

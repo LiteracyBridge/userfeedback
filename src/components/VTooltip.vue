@@ -9,7 +9,7 @@
 
     <span
       :class="[show ? 'visible' : 'invisible', position === 'left' ? '-ml-4' : '']"
-      class="absolute z-10 p-2 text-sm text-white text-center bg-gray-600 rounded-lg"
+      class="absolute z-10 p-2 text-base text-white text-center bg-gray-600 rounded-lg"
       :style="style"
     >
       {{ text }}
