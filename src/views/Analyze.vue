@@ -2,14 +2,14 @@
 <div width="100%"  @keydown.esc="escape" >
 <div width="100%" class="navbar">
   <span>AMPLIO</span>
-  <span>Analysis</span>
+  <span class="text-2xl">Analysis</span>
   <span>
-    <select v-model="selectedProgramCode" @change="newProgram">
+    <select v-model="selectedProgramCode" @change="newProgram" class="outline-grey text-black text-base">
       <option v-for="program in programs" :value="program.code" :key="program.code">
         <span> {{program.name}}</span>
       </option>
     </select>
-    <a @click="logout">Logout</a>
+    <a @click="logout" class="text-2xl text-white font-bold whitespace-nowrap rounded cursor-pointer hover:text-gray-500">Logout</a>
   </span>
 </div>
 <div id="modal" >
@@ -94,14 +94,14 @@
       <table width="100%" style="padding: 0px">
         <tr>
           <td>
-            Deployment <select v-model="selectedDeployment" @change="loadQuestions">
+            Deployment <select v-model="selectedDeployment" @change="loadQuestions" class="outline-grey">
               <option v-for="deployment in deployments" :value="deployment" :key="deployment">
                 <span> {{deployment}}</span>
               </option>
             </select>
           </td>
           <td>
-            Language <select v-model="selectedLanguageCode" @change="loadQuestions">
+            Language <select v-model="selectedLanguageCode" @change="loadQuestions" class="outline-grey">
               <option v-for="language in languages" :value="language.code" :key="language.code">
                 <span> {{language.name}}</span>
               </option>
@@ -129,31 +129,32 @@
                       <span v-if="question.required" style="color: red">*</span>   
                   </p>
                   <div v-if="question.type=='textarea'">
-                    <textarea width="100%" rows="5" :name="question.name" v-model="form.responses[question.data]"/>
+                    <textarea width="100%" rows="5" class="outline-grey" :name="question.name" v-model="form.responses[question.data]"/>
                   </div>
                   <div v-for="choice in question.choices" :key="choice.choice_id">
-                      <input @click="uncheckSubChoices(choice.data)" :type="question.type" :name="question.name" :id="choice.choice_id" :ref="choice.choice_id" :value="choice.value" v-model="form.responses[question.data]" />
-                      <label :for="choice.choice_id">{{choice.choice_label}}</label>
+                      <input class="align-middle mr-3" @change="clearOtherAndSubChoices
+                      (choice,question)" :type="question.type" :name="question.name" :id="choice.choice_id" :ref="choice.choice_id" :value="choice.value" v-model="form.responses[question.data]" />
+                      <label class="align-middle" :for="choice.choice_id">{{choice.choice_label}}</label>
                       <br />
                       <div  v-if="choice.choices && String(form.responses[question.data]).includes(choice.value)">
                         <label>{{choice.question_label}}</label><span v-if="choice.required" style="color: red">*</span>   
                         <div v-for="subchoice in choice.choices" :key="subchoice.choice_id" style="text-indent: 20px">
-                            <input :type="choice.type" :name="choice.name" :id="choice.question_id" :value="subchoice.value" v-model="form.responses[choice.data]"/>
-                            <label :for="subchoice.id">{{subchoice.choice_label}}</label>
+                            <input class="align-middle mr-3" :type="choice.type" :name="choice.name" :id="choice.question_id" :value="subchoice.value" v-model="form.responses[choice.data]"/>
+                            <label class="align-middle" :for="subchoice.id">{{subchoice.choice_label}}</label>
                         </div>
                       <div v-if="choice.data_other" style="text-indent: 20px">
-                          <input :type="choice.type" :name="choice.name" :id="choice.question_id+'-other'" value="other" v-model="form.responses[choice.data]"/>
-                          <label :for="choice.id+'-other'">Other</label>
-                          <input @focus="form.responses[choice.data].push('other')" type="text" class="text_input" name="choice.name+'-othertxt'" id="choice.choice_id+'-othertxt'" v-model="form.responses[choice.data_other]"/>
+                            <input class="mr-3" @change="clearOtherAndSubChoices(null,choice)" :type="choice.type" :name="choice.name" :id="choice.question_id+'-other'" value="other" v-model="form.responses[choice.data]"/>
+                            <label :for="choice.id+'-other'">Other:</label>
+                            <input class="ml-3 text_input" @focus="form.responses[choice.data].push('other')" type="text" name="choice.name+'-othertxt'" id="choice.choice_id+'-othertxt'" v-model="form.responses[choice.data_other]"/>
                       </div>
 
                       </div>
                   </div>
                   <div v-if="question.data_other" :key="question.question_id+'-other'">
-                      <input :type="question.type" :name="question.name" :id="question.question_id+'-other'" :ref="question.question_id+'-other'" value="other" v-model="form.responses[question.data]" />
-                      <label :for="question.question_id+'-other'">Other</label>
+                      <input class="mr-3" :type="question.type" :name="question.name" :id="question.question_id+'-other'" :ref="question.question_id+'-other'" value="other" v-model="form.responses[question.data]" />
+                      <label :for="question.question_id+'-other'">Other:</label>
                       <span >
-                          <input @focus="form.responses[question.data].push('other')" type="text" class="text_input" name="question.name+'-othertxt'" id="question.question_id+'othertxt'" v-model="form.responses[question.data_other]"/>
+                          <input class="ml-3 text_input" @focus="(Array.isArray(form.responses[question.data]) && form.responses[question.data].length > 0 ? form.responses[question.data].push('other') : form.responses[question.data]='other')" type="text" name="question.name+'-othertxt'" id="question.question_id+'othertxt'" v-model="form.responses[question.data_other]"/>
                       </span>
                   </div>
               </td>
@@ -184,12 +185,14 @@ import { Auth } from 'aws-amplify';
 import axios from 'axios'
 import Vue from 'vue'
 import VueAxios from 'vue-axios'
+import VTooltip from '@/components/VTooltip'
 Vue.use(VueAxios,axios)
 
 export default {
   name: "Home",
   components: {
-    LatestAudio   //,Question
+    LatestAudio,   //,Question
+    VTooltip
   },
   data() {
     return {
@@ -259,15 +262,21 @@ export default {
           await Auth.signOut();
           this.$router.push('Login');
       } catch (error) {
-          alert(error.message);
+          console.log(error.message);
       }
     },
     updateConnected(isConnected) {
       this.connected = isConnected;
     },
-    uncheckSubChoices(responsecode) {
-      if(responsecode) {
-        this.form.responses[responsecode]=[];
+    clearOtherAndSubChoices(choice,question) {
+      if (question.data_other && !(String(this.form.responses[question.data]).includes('other'))) {
+          this.form.responses[question.data_other] = '';
+      }
+      if (choice && choice.data) {
+        this.form.responses[choice.data]=[];
+        if (choice.data_other) {
+          this.form.responses[choice.data_other] = '';
+        }
       }
     },
     showNoMessages() {
@@ -496,7 +505,6 @@ table {
 td.pad {
   padding: 15px;
   padding-top: 0px;
-  padding-left: 0px;
   vertical-align: top;
 }
 td.stats {
@@ -534,7 +542,7 @@ ul {
 
 .text_input {
   border-color: transparent;
-  border-bottom: 2px solid;
+  border-bottom: 1px solid;
   outline:none;
 }
 

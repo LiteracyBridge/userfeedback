@@ -1,6 +1,6 @@
 <template>
     <div>
-        <table width="100%">
+        <table width="100%" class="border-separate">
             <tr> 
                 <td rowspan="2" class="totalstat">
                     <span>{{totalReceivedMessages}}</span>
@@ -41,7 +41,7 @@
         <table style="border: 2px solid #ddd" width="100%">
             <tr><td style="padding: 10px">
                 <span class="audiometadata">Filename: {{getUUID()}}</span>
-                <div tabindex="0" class="noFocusOutline" ref="audioDiv" @keydown="checkKey">
+                <div tabindex="0" class="flex justify-center noFocusOutline" ref="audioDiv" @keydown="checkKey">
                     <audio ref="audio" @timeupdate="checkLoop" @canplaythrough="loaded" tabindex="-1" controls preload="auto" autoplay :src="url">
                         Your browser doesn't support the HTML5 audio element.
                     </audio>
@@ -342,6 +342,9 @@ export default {
 }
 .noFocusOutline {
     outline: 0px solid transparent;
+}
+table {
+    border-spacing:3px;
 }
 td {
     text-align:center;
