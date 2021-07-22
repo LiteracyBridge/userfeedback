@@ -70,7 +70,7 @@
 </template>
 
 <script>
-import { mapState, mapActions } from 'vuex'
+//import { mapState, mapActions } from 'vuex'
 
 import VButton from '@/components/VButton'
 import VInput from '@/components/VInput'
