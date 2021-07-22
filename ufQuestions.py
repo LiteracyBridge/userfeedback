@@ -154,7 +154,8 @@ def questions(program,language,deployment):
             for (enum,value) in enumerate(row):
                 question[questions_fields[enum]]=value
             choice_list_name = question.pop('choice_list')
-            if choice_list_name != '':
+            if choice_list_name != '' and choice_list_name != None:
+                print(choice_list_name)
                 question['choices'] = choiceLists[choice_list_name]
             relevant = question.pop('relevant')
             if relevant != '' and relevant is not None:
