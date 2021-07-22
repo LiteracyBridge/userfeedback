@@ -135,15 +135,15 @@
                     <textarea width="100%" rows="5" class="outline-grey" :name="question.name" v-model="form.responses[question.data]"/>
                   </div>
                   <div v-for="choice in question.choices" :key="choice.choice_id">
-                      <input class="align-middle mr-3" @change="clearOtherAndSubChoices
+                      <input class="mr-3" @change="clearOtherAndSubChoices
                       (choice,question)" :type="question.type" :name="question.name" :id="choice.choice_id" :ref="choice.choice_id" :value="choice.value" v-model="form.responses[question.data]" />
-                      <label class="align-middle" :for="choice.choice_id">{{choice.choice_label}}</label>
+                      <label :for="choice.choice_id">{{choice.choice_label}}</label>
                       <br />
                       <div  v-if="choice.choices && String(form.responses[question.data]).includes(choice.value)">
                         <label>{{choice.question_label}}</label><span v-if="choice.required" style="color: red">*</span>   
                         <div v-for="subchoice in choice.choices" :key="subchoice.choice_id" style="text-indent: 20px">
-                            <input class="align-middle mr-3" :type="choice.type" :name="choice.name" :id="choice.question_id" :value="subchoice.value" v-model="form.responses[choice.data]"/>
-                            <label class="align-middle" :for="subchoice.id">{{subchoice.choice_label}}</label>
+                            <input class="mr-3" :type="choice.type" :name="choice.name" :id="choice.question_id" :value="subchoice.value" v-model="form.responses[choice.data]"/>
+                            <label :for="subchoice.id">{{subchoice.choice_label}}</label>
                         </div>
                       <div v-if="choice.data_other" style="text-indent: 20px">
                             <input class="mr-3" @change="clearOtherAndSubChoices(null,choice)" :type="choice.type" :name="choice.name" :id="choice.question_id+'-other'" value="other" v-model="form.responses[choice.data]"/>
