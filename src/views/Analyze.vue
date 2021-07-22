@@ -67,7 +67,10 @@
   </transition>
   <transition name="pop" appear>
     <div class="modal" role="dialog" v-if="noMessages">
-      <h1 style="color:red">No Messages to Process!</h1>
+      <h1 style="color:red">
+        <span v-if="totalReceivedMessages > 0">No more messages to process!</span>
+        <span v-else>No messages are ready to process yet.</span>          
+        </h1>
     </div>
   </transition>
 </div>
@@ -283,7 +286,7 @@ export default {
           this.noMessages = true;
           setTimeout(()=> {
             this.noMessages = false;
-          },7000);
+          },4000);
     },
     handleUseless() {
       this.form.useless = true;
