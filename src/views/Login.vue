@@ -1,35 +1,60 @@
 <template>
     <div>
       <div class="login" v-if="displayLogin" width="100%">
-        <table><tr><td><img alt="Amplio logo" src="../assets/logo.png" width="256" height="40" /></td></tr>
-        <tr><td>
+    <div class="mx-auto pt-20" style="max-width:300px;">
+        <img alt="Amplio logo" src="../assets/logo.png" class="mx-auto" />
+        <p class="mt-3"  style="font-size:1.5em">User Feedback Processing</p>
+        <div class="mt-5 p-6 bg-white rounded-lg shadow-box">
         <form @submit.prevent="login">
-            <p style="font-size:1.5em">User Feedback Processing</p>
-            <div>Email Address</div>
-            <input
-                type="email"
-                v-model="email"
-                placeholder="Email address..."
-            /><div>Password</div>
-            <input
+                <v-input
+                ref="user"
+                type="text"
+                icon-left="user-circle"
+                name="emailAddress"
+                label="Email address"
+                class="my-6"
+                :value="email"
+                @input="email = $event.target.value"
+                />
+                <v-input
                 type="password"
-                v-model="password"
-                placeholder="password..."
-            /><p/>
-            <button>Login</button>
+                name="password"
+                label="Password"
+                class="mt-6 mb-2"
+                :value="password"
+                @input="password = $event.target.value"
+                />
+                <p/>
+                <VButton
+                    type="submit"
+                    label="Sign In"
+                    variant="success full"
+                    @click="login"
+                />
         </form>
-        </td></tr>
-        </table>
       </div>
-      <div width="100%" class="bottombar">Copyright 2021 AMPLIO NETWORK</div>
+      <!-- <p class="text-sm mt-4">
+        No account? <router-link class="text-green font-bold" to="/register">Sign Up</router-link>
+      </p> -->
+
+    </div>
+      </div>
+      <div width="100%" class="bottombar">&copy; 2021 AMPLIO NETWORK</div>
     </div>
 </template>
 
 <script>
 import { Auth } from 'aws-amplify';
-import Vue from 'vue'
+import Vue from 'vue';
+import VInput from '@/components/VInput';
+import VButton from '@/components/VButton';
+
 
 export default {
+    components: {
+        VInput,
+        VButton
+    },        
     name: 'Login',
     data() {
         return {
@@ -45,7 +70,7 @@ export default {
                 console.log('user', user);
                 this.isUserSignedIn();
             } catch (error) {
-                alert(error.message);
+                console.log(error.message);
             }
         },
         async isUserSignedIn() {
@@ -60,7 +85,7 @@ export default {
             }
             catch (err) {
                 this.displayLogin = true;
-                alert(err);
+                // alert(err);
                 console.log(err);
             }
         }
