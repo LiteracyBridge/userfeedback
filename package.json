@@ -9,10 +9,16 @@
   },
   "dependencies": {
     "@braid/vue-formulate": "^2.5.2",
+    "@fortawesome/fontawesome-svg-core": "^1.2.35",
+    "@fortawesome/free-solid-svg-icons": "^5.15.3",
+    "@fortawesome/vue-fontawesome": "^2.0.2",
+    "autoprefixer": "^9.8.6",
     "aws-amplify": "^4.1.2",
     "aws-amplify-vue": "^2.1.5",
     "axios": "^0.21.1",
     "core-js": "^3.6.5",
+    "postcss": "^7.0.36",
+    "tailwindcss": "npm:@tailwindcss/postcss7-compat@^2.2.4",
     "vue": "^2.6.11",
     "vue-axios": "^3.2.4",
     "vue-router": "^3.2.0"

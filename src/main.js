@@ -1,5 +1,6 @@
 import Vue from 'vue'
 import App from './App.vue'
+import './assets/main.css'
 
 import Amplify from 'aws-amplify'
 import awsconfig from './aws-exports';
