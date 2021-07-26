@@ -4,7 +4,7 @@
   <span>AMPLIO</span>
   <span class="text-2xl">Analysis</span>
   <span>
-    <select v-model="selectedProgramCode" @change="newProgram" class="outline-grey text-black text-base">
+    <select v-model="context.selectedProgramCode" @change="newProgram" class="outline-grey text-black text-base">
       <option v-for="program in programs" :value="program.code" :key="program.code">
         <span> {{program.name}}</span>
       </option>
@@ -68,7 +68,7 @@
   <transition name="pop" appear>
     <div class="modal" role="dialog" v-if="noMessages">
       <h1 style="color:red">
-        <span v-if="totalReceivedMessages > 0">No more messages to process!</span>
+        <span v-if="context.totalReceivedMessages > 0">No more messages to process!</span>
         <span v-else>No messages are ready to process yet.</span>          
         </h1>
     </div>
@@ -97,14 +97,14 @@
       <table width="100%" style="padding: 0px">
         <tr>
           <td>
-            Deployment <select v-model="selectedDeployment" @change="loadQuestions" class="outline-grey">
+            Deployment <select v-model="context.selectedDeployment" @change="loadQuestions" class="outline-grey">
               <option v-for="deployment in deployments" :value="deployment" :key="deployment">
                 <span> {{deployment}}</span>
               </option>
             </select>
           </td>
           <td>
-            Language <select v-model="selectedLanguageCode" @change="loadQuestions" class="outline-grey">
+            Language <select v-model="context.selectedLanguageCode" @change="loadQuestions" class="outline-grey">
               <option v-for="language in languages" :value="language.code" :key="language.code">
                 <span> {{language.name}}</span>
               </option>
@@ -119,22 +119,51 @@
   </tr>
   <tr><td>
       <latest-audio :key="audioKey" @no_messages="showNoMessages" @network="updateConnected" @handleUseless="handleUseless" ref="audio" 
-      :userEmail="this.$route.query.email" :deployment="selectedDeployment" :program="selectedProgramCode" :language="selectedLanguageCode"
-      :totalReceivedMessages="totalReceivedMessages"/>
+      :userEmail="this.$route.query.email" :context="context" />
   </td></tr>
   <tr><td>
       <div ref="top">
         Feedback Form
         <table width="100%" style="text-align:left;border: 2px solid #ddd;padding: 5px">
-          <tr v-for="(question,count) in questions" :key="question.id">
+          <tr v-for="(question,count) in questions" :key="question.question_id">
               <td class="pad">
-                  <p class="question">{{count+1}}. {{question.question_label}}
-                      <span v-if="question.required" style="color: red">*</span>   
+                  <p><span class="question">{{count+1}}. {{question.question_label}}</span>
+                      <!-- <span v-if="question.required" style="color: red">*</span>    -->
+                      <span v-if="question.required"> (Required)</span>   
+                      <span v-else> (Optional)</span>   
                   </p>
                   <div v-if="question.type=='textarea'">
                     <textarea width="100%" rows="5" class="outline-grey" :name="question.name" v-model="form.responses[question.data]"/>
                   </div>
-                  <div v-for="choice in question.choices" :key="choice.choice_id">
+                  <div v-if="question.type=='number'">
+                    <p v-if="invalidResponse(question)" class="col-span-2 md:col-span-4 text-center text-red-500">
+                      <font-awesome-icon icon="exclamation-circle" class="w-6 h-6" />
+                      Invalid Number: {{question.constraint}}
+                    </p>
+                    <v-input :name="question.name" type="number" mx="mx-0" :value="Number(form.responses[question.data])"
+                      @input="updateResponse(question.data,$event.target.value)"/>
+                  </div>
+                  <div v-if="question.type=='select'">
+                    <select :name="question.name" mx="mx-0" v-model="form.responses[question.data]" class="outline-grey text-black text-base">
+                      <option v-for="option in question.choices" :key="option.choice_id" :value="option.value">
+                          {{option.choice_label}}
+                      </option>
+                    </select>
+                  </div>
+                  <!-- <div v-if="question.type=='select'">
+                    <label for="question.id+'-input'">{{question.question_label}}</label>
+                    <multiselect
+                      :id="question.id + '-multi'"
+                      :value="form.responses[question.data]"
+
+                      :options="question.choices"
+                      placeholder="Select an option"
+                      aria-label="Select an option"
+                      @select="$updateResponse(question.data,event.target.value)"
+                    />
+                  </div> -->
+
+                  <div v-else v-for="choice in question.choices" :key="choice.choice_id">
                       <input class="mr-3" @change="clearOtherAndSubChoices
                       (choice,question)" :type="question.type" :name="question.name" :id="choice.choice_id" :ref="choice.choice_id" :value="choice.value" v-model="form.responses[question.data]" />
                       <label :for="choice.choice_id">{{choice.choice_label}}</label>
@@ -143,21 +172,30 @@
                         <label>{{choice.question_label}}</label><span v-if="choice.required" style="color: red">*</span>   
                         <div v-for="subchoice in choice.choices" :key="subchoice.choice_id" style="text-indent: 20px">
                             <input class="mr-3" :type="choice.type" :name="choice.name" :id="choice.question_id" :value="subchoice.value" v-model="form.responses[choice.data]"/>
-                            <label :for="subchoice.id">{{subchoice.choice_label}}</label>
+                            <label :for="subchoice.choice_id">{{subchoice.choice_label}}</label>
                         </div>
                       <div v-if="choice.data_other" style="text-indent: 20px">
                             <input class="mr-3" @change="clearOtherAndSubChoices(null,choice)" :type="choice.type" :name="choice.name" :id="choice.question_id+'-other'" value="other" v-model="form.responses[choice.data]"/>
-                            <label :for="choice.id+'-other'">Other:</label>
-                            <input class="ml-3 text_input" @focus="form.responses[choice.data].push('other')" type="text" name="choice.name+'-othertxt'" id="choice.choice_id+'-othertxt'" v-model="form.responses[choice.data_other]"/>
+                            <label :for="choice.choice_id+'-other'">Other</label>
+                            <!-- <input class="ml-3 text_input" @focus="form.responses[choice.data].push('other')" type="text" :name="choice.name+'-othertxt'" :id="choice.choice_id+'-othertxt'" v-model="form.responses[choice.data_other]"/> -->
+                            <div v-if="String(form.responses[choice.data]).includes('other')">
+                              <textarea rows="2" @focus="form.responses[choice.data].push('other')" class="ml-16 w-auto outline-grey" :name="choice.name+'-othertxt'" :id="choice.choice_id+'-othertxt'" v-model="form.responses[choice.data_other]"/>
+                            </div>
                       </div>
 
                       </div>
                   </div>
-                  <div v-if="question.data_other" :key="question.question_id+'-other'">
-                      <input class="mr-3" :type="question.type" :name="question.name" :id="question.question_id+'-other'" :ref="question.question_id+'-other'" value="other" v-model="form.responses[question.data]" />
-                      <label :for="question.question_id+'-other'">Other:</label>
+                  <!-- <div v-if="question.data_other" :key="question.question_id+'-other'"> -->
+                  <div v-if="question.data_other">
+                      <!-- <input class="mr-3" @change="clearOtherAndSubChoices(null,question)" :type="question.type" :name="question.name" :id="question.question_id+'-other'" :ref="question.question_id+'-other'" value="other" v-model="form.responses[question.data]" /> -->
+                      <input class="mr-3" @change="clearOtherAndSubChoices(null,question)" :type="question.type" :name="question.name" :id="question.question_id+'-other'" value="other" v-model="form.responses[question.data]" />
+                      <label :for="question.question_id+'-other'">Other</label>
                       <span >
-                          <input class="ml-3 text_input" @focus="(Array.isArray(form.responses[question.data]) && form.responses[question.data].length > 0 ? form.responses[question.data].push('other') : form.responses[question.data]='other')" type="text" name="question.name+'-othertxt'" id="question.question_id+'othertxt'" v-model="form.responses[question.data_other]"/>
+                          <!-- <input class="ml-3 text_input" @focus="(Array.isArray(form.responses[question.data]) && form.responses[question.data].length > 0 ? form.responses[question.data].push('other') : form.responses[question.data]='other')" type="text" name="question.name+'-othertxt'" :id="question.question_id+'othertxt'" v-model="form.responses[question.data_other]"/> -->
+                          <!-- <input class="ml-3 text_input" @focus="form.responses[question.data].push('other')" type="text" name="question.name+'-othertxt'" :id="question.question_id+'-othertxt'" v-model="form.responses[question.data_other]"/> -->
+                          <div v-if="String(form.responses[question.data]).includes('other')">
+                            <textarea rows="2" @focus="form.responses[question.data].push('other')" class="ml-16 w-auto outline-grey" :name="question.name+'-othertxt'" :id="question.choice_id+'-othertxt'" v-model="form.responses[question.data_other]"/>
+                          </div>
                       </span>
                   </div>
               </td>
@@ -211,6 +249,8 @@ import VueAxios from 'vue-axios'
 import VTooltip from '@/components/VTooltip'
 import VInput from '@/components/VInput'
 import VButton from '@/components/VButton';
+import uniqueId from 'lodash.uniqueid'
+import Multiselect from 'vue-multiselect'
 
 Vue.use(VueAxios,axios)
 
@@ -220,7 +260,8 @@ export default {
     LatestAudio,   //,Question
     VTooltip,
     VInput,
-    VButton
+    VButton,
+    Multiselect
   },
   data() {
     return {
@@ -256,7 +297,47 @@ export default {
           resp_17:[],
           resp_18:[],
           resp_19:[],
-          resp_20:[]
+          resp_20:[],
+          resp_21:[],
+          resp_22:[],
+          resp_23:[],
+          resp_24:[],
+          resp_25:[],
+          resp_26:[],
+          resp_27:[],
+          resp_28:[],
+          resp_29:[],
+          resp_30:[],
+          resp_01_o:[],
+          resp_02_o:[],
+          resp_03_o:[],
+          resp_04_o:[],
+          resp_05_o:[],
+          resp_06_o:[],
+          resp_07_o:[],
+          resp_08_o:[],
+          resp_09_o:[],
+          resp_10_o:[],
+          resp_11_o:[],
+          resp_12_o:[],
+          resp_13_o:[],
+          resp_14_o:[],
+          resp_15_o:[],
+          resp_16_o:[],
+          resp_17_o:[],
+          resp_18_o:[],
+          resp_19_o:[],
+          resp_20_o:[],
+          resp_21_o:[],
+          resp_22_o:[],
+          resp_23_o:[],
+          resp_24_o:[],
+          resp_25_o:[],
+          resp_26_o:[],
+          resp_27_o:[],
+          resp_28_o:[],
+          resp_29_o:[],
+          resp_30_o:[],
         }
       },
       programs: [{
@@ -273,19 +354,55 @@ export default {
         languages:[{
           code:"aar",
           name:"Afar af"
-        },{
-          code:"en",
-          name:"English"
         }],
-        deployments:[1,2]
+        deployments:[1]
       }],
-      selectedProgramCode:"CARE-ETH-GIRLS",
-      selectedDeployment:1,
-      selectedLanguageCode:"aar",
-      totalReceivedMessages: 123 
+      context: {
+        selectedProgramCode:"CARE-ETH-GIRLS",
+        selectedDeployment:1,
+        selectedLanguageCode:"aar",
+        totalReceivedMessages: 123 
+      }
     }
   },
   methods: {
+    updateResponse(whichResponse,whatValue) {
+      this.form.responses[whichResponse] = whatValue;
+      console.log('['+whichResponse+']:'+whatValue);
+      //this.getQuestionFromResponseCode(whichResponse);
+    },
+    invalidResponse(question) {
+      const constraint='non-negative';//question.constraint  //this.getPropertyFromData(whichResponse,'constraint');
+      const data=this.form.responses['resp_20'];//question.data //[whichResponse];
+      var invalid = false;
+      if (constraint =='non-negative') {
+        if(isNaN(data[0]) || data[0]<0) {
+          invalid = true;
+        }
+      };
+      return invalid;      
+    },
+    getPropertyFromData(whichResponse,key) {
+      // search the questions for data or data_other matching whichResponse
+      console.log("in getProp:"+whichResponse)
+      var target,question;
+      // first search the top-level questions
+      question = this.questions.filter((q)=>{
+        return q.data==whichResponse || q.data_other==whichResponse;
+      });
+      if (question.length==1) {
+        target = question[0]; 
+      } else {
+        // if not in top-level questions, it must be in a choice that has subchoices.
+        question = this.questions.filter(q1=>q1.choices).map((q2)=>{
+          return q2.choices.filter((c)=>{
+            return c.data==whichResponse||c.data_other==whichResponse
+          })
+        }).filter(q3=>q3.length>0);
+        target = question[0][0];
+      }
+      return target[key];
+    },
     async logout() {
       try {
           await Auth.signOut();
@@ -324,19 +441,12 @@ export default {
       this.form.user_email = this.$route.query.email;
       this.form.uuid = this.$refs.audio.getUUID();
 
-      //Submit values somewhere
-      //const action = "https://b71ce224-55b2-4565-b217-0a98ed7fbea6.mock.pstmn.io";
+      //Submit values here:
       const action = "https://ckz0f72fjf.execute-api.us-west-2.amazonaws.com/default/ufProcess";      
       Vue.axios.post(action,this.form, {headers: {'Authorization': `${this.$token}`}})
       .then(response=>{
           console.log(response.data);
           //TODO: What if Lambda function says it wasn't submitted properly
-          //this.audioMetadata = response.data;
-          //this.url=this.audioMetadata.url;
-          //this.filename = unescape(this.url.substring(this.url.lastIndexOf('/')+1)); 
-          //this.fullyLoaded = false;
-          //this.$refs.audio.load();
-          //this.setAudioFocus();
           this.showSubmitModal = true;
           this.resetFormAndAudio();
           setTimeout(()=> {
@@ -354,28 +464,17 @@ export default {
       //there's got to be an easier way!
       this.form.uuid = '';
       this.form.useless = false;
-      this.form.responses.transcription='';
-      this.form.responses.resp_01=[];
-      this.form.responses.resp_02=[];
-      this.form.responses.resp_03=[];
-      this.form.responses.resp_04=[];
-      this.form.responses.resp_05=[];
-      this.form.responses.resp_06=[];
-      this.form.responses.resp_07=[];
-      this.form.responses.resp_08=[];
-      this.form.responses.resp_09=[];
-      this.form.responses.resp_10=[];
-      this.form.responses.resp_11=[];
-      this.form.responses.resp_12=[];
-      this.form.responses.resp_13=[];
-      this.form.responses.resp_14=[];
-      this.form.responses.resp_15=[];
-      this.form.responses.resp_16=[];
-      this.form.responses.resp_17=[];
-      this.form.responses.resp_18=[];
-      this.form.responses.resp_19=[];
-      this.form.responses.resp_20=[];
-      this.audioKey += 1;
+      for (var i=1;i<=30;i++) {
+        var field = i.toString();
+        if (field.length==1) {
+          field = '0'+field;
+        }
+        field = 'resp_' + field;
+        // console.log(field);
+        this.form.responses[field]=[];
+        this.form.responses[field+'_o']=[];
+      }
+      this.setDefaults();
       if (this.$refs.audio) {
         this.$refs.audio.updateUrl();
       }
@@ -394,34 +493,35 @@ export default {
       }
     },
     newProgram() {
-      this.selectedLanguageCode = this.languages[0].code;
-      this.selectedDeployment = this.deployments[0];
+      this.context.selectedLanguageCode = this.languages[0].code;
+      this.context.selectedDeployment = this.deployments[0];
       this.loadQuestions();
     },
+    setDefaults() {
+      for (var q of this.questions) {
+        if (q.default && q.default != 'null') {
+          if (q.type == 'select') {
+            this.form.responses[q.data]=q.default;
+          } else {
+            this.form.responses[q.data]=[q.default];
+          }
+        }   
+      }
+    },
     loadQuestions() {
-      //const generated = '[{"id": 1, "name": "transcription", "question_label": "Transcription", "type": "textarea", "data": "transcription", "data_other": "", "required": false, "constraint": ""}, {"id": 2, "name": "adult_child", "question_label": "Is the person speaking an adult or child?", "type": "radio", "data": "resp_01", "data_other": "", "required": false, "constraint": "", "choices": [{"choice_id": 1, "choice_label": "Adult", "value": "adult"}, {"choice_id": 2, "choice_label": "Child", "value": "child"}, {"choice_id": 3, "choice_label": "Unsure", "value": "unsure"}]}, {"id": 3, "name": "gender", "question_label": "Is the person speaking male or female?", "type": "radio", "data": "resp_02", "data_other": "", "required": false, "constraint": "", "choices": [{"choice_id": 4, "choice_label": "Male", "value": "male"}, {"choice_id": 5, "choice_label": "Female", "value": "female"}, {"choice_id": 6, "choice_label": "Unsure", "value": "unsure"}]}, {"id": 4, "name": "sentiment", "question_label": "Is the person speaking offering a ...", "type": "radio", "data": "resp_03", "data_other": "", "required": true, "constraint": "", "choices": [{"choice_id": 7, "choice_label": "Comment", "value": "comment"}, {"choice_id": 8, "choice_label": "Complaint", "value": "complaint"}, {"choice_id": 9, "choice_label": "Endorsement", "value": "endorsement"}, {"choice_id": 10, "choice_label": "Question", "value": "question"}, {"choice_id": 11, "choice_label": "Suggestion", "value": "suggestion"}, {"choice_id": 12, "choice_label": "Unsure", "value": "unsure"}]}, {"id": 5, "name": "topic", "question_label": "What is the topic of the message?", "type": "checkbox", "data": "resp_04", "data_other": "", "required": true, "constraint": "", "choices": [{"choice_id": 13, "choice_label": "Diarrhea Management", "value": "diarrhea", "id": 6, "name": "diarrhea", "question_label": "Select subtopic(s)", "type": "checkbox", "data": "resp_05", "data_other": "", "required": true, "constraint": "", "choices": [{"choice_id": 18, "choice_label": "ORS", "value": "ors"}, {"choice_id": 19, "choice_label": "Zinc", "value": "zinc"}, {"choice_id": 20, "choice_label": "Signs of Diarrhea", "value": "signs"}, {"choice_id": 21, "choice_label": "Feeding and Drinking", "value": "feeding"}]}, {"choice_id": 14, "choice_label": "Malaria Prevention", "value": "malaria", "id": 7, "name": "malaria", "question_label": "Select subtopic(s)", "type": "checkbox", "data": "resp_06", "data_other": "", "required": true, "constraint": "", "choices": [{"choice_id": 22, "choice_label": "LLINs", "value": "llins"}, {"choice_id": 23, "choice_label": "Signs and Symptoms", "value": "signs"}, {"choice_id": 24, "choice_label": "Myths about Malaria", "value": "myths"}, {"choice_id": 25, "choice_label": "Hygiene and Sitting Water", "value": "hygiene"}]}, {"choice_id": 15, "choice_label": "Handwashing", "value": "handwashing", "id": 8, "name": "handwashing", "question_label": "Select subtopic(s)", "type": "checkbox", "data": "resp_07", "data_other": "", "required": true, "constraint": "", "choices": [{"choice_id": 26, "choice_label": "Use of a Tippy-Tap", "value": "tippytap"}, {"choice_id": 27, "choice_label": "Buying vs. Making Soap", "value": "makingsoap"}, {"choice_id": 28, "choice_label": "Handwashing Technique", "value": "technique"}, {"choice_id": 29, "choice_label": "Times for Handwashing", "value": "times"}]}, {"choice_id": 16, "choice_label": "Safe Delivery", "value": "delivery", "id": 9, "name": "delivery", "question_label": "Select subtopic(s)", "type": "checkbox", "data": "resp_08", "data_other": "", "required": true, "constraint": "", "choices": [{"choice_id": 30, "choice_label": "Use of SBAs", "value": "sba"}, {"choice_id": 31, "choice_label": "Importance of ANC", "value": "anc"}, {"choice_id": 32, "choice_label": "When to Call a Doctor", "value": "calldoctor"}, {"choice_id": 33, "choice_label": "Planning for Delivery", "value": "planning"}]}, {"choice_id": 17, "choice_label": "Breastfeeding", "value": "breastfeeding", "id": 10, "name": "breastfeeding", "question_label": "Select subtopic(s)", "type": "checkbox", "data": "resp_09", "data_other": "", "required": true, "constraint": "", "choices": [{"choice_id": 34, "choice_label": "No food or water for 6 months", "value": "nofood6mos"}, {"choice_id": 35, "choice_label": "Introduction of solid foods", "value": "solidfood"}, {"choice_id": 36, "choice_label": "First breastmilk", "value": "firstmilk"}, {"choice_id": 37, "choice_label": "Problems with latching", "value": "latching"}]}]}, {"id": 11, "name": "cp", "question_label": "Is a child protection issue discussed?", "type": "radio", "data": "resp_10", "data_other": "", "required": true, "constraint": "", "choices": [{"choice_id": 38, "choice_label": "Yes", "value": "yes"}, {"choice_id": 39, "choice_label": "No", "value": "no"}, {"choice_id": 40, "choice_label": "Unsure", "value": "unsure"}]}, {"id": 12, "name": "action", "question_label": "Does this User Feedback message prompt any action?", "type": "radio", "data": "resp_11", "data_other": "resp_12", "required": true, "constraint": "", "choices": [{"choice_id": 41, "choice_label": "None", "value": "none"}, {"choice_id": 42, "choice_label": "Answer question in a future message", "value": "message"}, {"choice_id": 43, "choice_label": "Provide guidance to a community facilitator", "value": "guidance"}, {"choice_id": 44, "choice_label": "Clarify a confusing message", "value": "clarify"}]}]';
-      //this.questions=JSON.parse(generated);
       const request = "https://ckz0f72fjf.execute-api.us-west-2.amazonaws.com/default/ufQuestions?"
-          + "&program=" + this.selectedProgramCode
-          + "&deployment=" + this.selectedDeployment
-          + "&language=" + this.selectedLanguageCode;
+          + "&program=" + this.context.selectedProgramCode
+          + "&deployment=" + this.context.selectedDeployment
+          + "&language=" + this.context.selectedLanguageCode;
       // Vue.axios.interceptors.request.use(request => {
       //     console.log('Starting Request', JSON.stringify(request, null, 2))
       //     return request
       // });
       Vue.axios.get(request,{headers: {'Authorization': `${this.$token}`}})
       .then(response=>{
-        console.log("got questions:");
         this.questions=response.data;
-        if (this.selectedProgramCode == 'CARE-ETH-GIRLS') {
-          this.totalReceivedMessages = 173; //actual number
-        } else if (this.selectedLanguageCode == 'en') {
-          this.totalReceivedMessages = 456;  // made-up number for made-up deployment 
-        } else if (this.selectedDeployment == 1) {
-          this.totalReceivedMessages = 169; //actual number
-        } else {
-          this.totalReceivedMessages = 0; // made-up number for made-up deployment
-        }
+        this.setDefaults();
+        this.hardcodeTotalReceived();
         if (!this.connected) {
             this.$emit('network',true);
             this.connected = true;
@@ -433,6 +533,21 @@ export default {
           this.connected = false;
       });
       this.resetFormAndAudio();
+    },
+    hardcodeTotalReceived() {
+        // Rabiya plans to write functionality to get programs/languages/deployments for the user
+        // This should also include the total received UF messages that are applicable.
+        // IMPORTANT: when doing this, be sure to exclude any messages less than 5 seconds, 
+        // just as done by the lambda fct, ufDataService, when it gets the next uuid. 
+        if (this.context.selectedProgramCode == 'CARE-ETH-GIRLS') {
+          this.context.totalReceivedMessages = 104; //actual number of girls UF messages >= 5 seconds
+        } else if (this.context.selectedLanguageCode == 'en') {
+          this.context.totalReceivedMessages = 456;  // made-up number for made-up deployment 
+        } else if (this.context.selectedDeployment == 1) {
+          this.context.totalReceivedMessages = 123; //actual number of boys UF messages >= 5 seconds
+        } else {
+          this.context.totalReceivedMessages = 0; // made-up number for made-up deployment
+        }
     },
     checkCompleted() {
         let completed = "";
@@ -468,16 +583,16 @@ export default {
     },
     deployments() {
       var program = this.programs.filter((p)=>{
-        return p.code==this.selectedProgramCode;
+        return p.code==this.context.selectedProgramCode;
         });
       //console.log("deployments="+program[0].deployments);
       return program[0].deployments;
     },
     languages() {
       var program = this.programs.filter((p)=>{
-        return p.code==this.selectedProgramCode;
+        return p.code==this.context.selectedProgramCode;
         });
-      //console.log("programcode="+this.selectedProgramCode);
+      //console.log("programcode="+this.context.selectedProgramCode);
       //console.log("languages"+ program[0].languages);
       return program[0].languages;
     },

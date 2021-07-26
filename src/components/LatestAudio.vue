@@ -3,7 +3,7 @@
         <table width="100%" class="border-separate">
             <tr> 
                 <td rowspan="2" class="totalstat">
-                    <span>{{totalReceivedMessages}}</span>
+                    <span>{{context.totalReceivedMessages}}</span>
                     <br/>
                     <span>Total received</span>
                 </td>
@@ -39,17 +39,18 @@
         <br/>
         Audio Player
         <table style="border: 2px solid #ddd" width="100%">
+            <span style="text-align:left"> Filename: {{getUUID()}}</span>
             <tr><td style="padding: 10px">
-                <span class="audiometadata">Filename: {{getUUID()}}</span>
-                <div tabindex="0" class="flex justify-center noFocusOutline" ref="audioDiv" @keydown="checkKey">
-                    <audio ref="audio" @timeupdate="checkLoop" @canplaythrough="loaded" tabindex="-1" controls preload="auto" autoplay :src="url">
-                        Your browser doesn't support the HTML5 audio element.
-                    </audio>
-                </div>
                 <div v-if="this.fullyLoaded" class="audiometadata">
                     <span style="font-weight:bold">Location:</span> {{audioMetadata.community}}, {{audioMetadata.district}}, {{audioMetadata.region}} 
                     <span style="font-weight:bold"> || Model:</span> {{audioMetadata.listening_model}} 
                     <span style="font-weight:bold"> || Group:</span> {{audioMetadata.group}} 
+                    <span style="font-weight:bold" v-if="audioMetadata.title"><br/>Last message:</span> {{audioMetadata.title}} 
+                </div>
+                <div tabindex="0" class="flex justify-center noFocusOutline" ref="audioDiv" @keydown="checkKey">
+                    <audio ref="audio" @timeupdate="checkLoop" @canplaythrough="loaded" tabindex="-1" controls preload="auto" autoplay :src="url">
+                        Your browser doesn't support the HTML5 audio element.
+                    </audio>
                 </div>
                 <div v-if="this.fullyLoaded" class="audiometadata">
                 <!-- <div> -->
@@ -76,7 +77,7 @@ Vue.use(VueAxios,axios)
 var a;
 export default {
     name:"LatestAudio",
-    props: ["userEmail","program","deployment","language","totalReceivedMessages"],
+    props: ["userEmail","context"],
     connected: true,
     data() {
         return {
@@ -139,12 +140,12 @@ export default {
                 }
             }                
         },
-        updateUrl() {    
+        updateUrl() {   
             const request = "https://ckz0f72fjf.execute-api.us-west-2.amazonaws.com/default/ufDataService?"
                 + "email=" + this.userEmail
-                + "&program=" + this.program
-                + "&deployment=" + this.deployment
-                + "&language=" + this.language;
+                + "&program=" + this.context.selectedProgramCode
+                + "&deployment=" + this.context.selectedDeployment
+                + "&language=" + this.context.selectedLanguageCode;
             // Vue.axios.interceptors.request.use(request => {
             //     console.log('Starting Request', JSON.stringify(request, null, 2))
             //     return request
@@ -162,8 +163,10 @@ export default {
                     this.url=this.audioMetadata.url;
                     this.filename = unescape(this.url.substring(this.url.lastIndexOf('/')+1)); 
                     this.fullyLoaded = false;
-                    this.$refs.audio.load();
-                    this.setAudioFocus();
+                    if (this.$refs.audio) {
+                        this.$refs.audio.load();
+                        this.setAudioFocus();                    
+                    };
                     console.log("new URL:"+this.audioMetadata.url);
                 }
             }).catch(err => {
@@ -243,8 +246,8 @@ export default {
                 case "Backspace":
                     // confirm that the audio is useless
                     break;
-                default:
-                    console.log(e.code);
+                // default:
+                //     console.log(e.code);
             }
         },
         setAudioFocus() {

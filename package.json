@@ -22,6 +22,7 @@
     "tailwindcss": "npm:@tailwindcss/postcss7-compat@^2.2.4",
     "vue": "^2.6.11",
     "vue-axios": "^3.2.4",
+    "vue-multiselect": "^2.1.6",
     "vue-router": "^3.2.0"
   },
   "devDependencies": {
