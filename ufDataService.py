@@ -97,18 +97,20 @@ def get_db_connection() -> Connection:
 
 # noinspection SqlNoDataSourceInspection,SqlResolve
 def get_next_uuid(connection, program, deployment_number, language):
-    MIN_SECONDS_FILTER = 5
+    MINIMUM_SECONDS_FILTER = 5   # filters out any UF messages of less than this # of seconds
+    MAXIMUM_MINUTES_CHECKOUT = 15  # re-issues the same UUID after this many minutes if the form hasn't yet been submitted
+    
     command = '''INSERT INTO uf_analysis (message_uuid,start_time)
                     SELECT message_uuid, NOW() FROM public.uf_messages
                     WHERE programid = :program and deploymentnumber = :deployment_number
                     and length_seconds >= :min_sec and language= :language and message_uuid NOT IN 
                         (SELECT message_uuid FROM uf_analysis 
                         WHERE submit_time IS NOT NULL 
-                        OR start_time > (NOW() - 15 * interval '1 minute'))
+                        OR start_time > (NOW() - :max_min * interval '1 minute'))
                     LIMIT 1
                 ON CONFLICT (message_uuid) DO UPDATE SET start_time=NOW()
                 RETURNING message_uuid'''
-    resp = connection.run(command,program=program,deployment_number=deployment_number,language=language,min_sec=MIN_SECONDS_FILTER)
+    resp = connection.run(command,program=program,deployment_number=deployment_number,language=language,min_sec=MINIMUM_SECONDS_FILTER,max_min=MAXIMUM_MINUTES_CHECKOUT)
     return resp
 
 
@@ -192,10 +194,6 @@ def lambda_handler(event, context):
     program = event['queryStringParameters']['program']
     deployment = str(event['queryStringParameters']['deployment'])
     language = event['queryStringParameters']['language']
-    # print('email:'+email)
-    # print('program:'+program)
-    # print('deployment:'+deployment)
-    # print('language:'+language)
     
     # Get body of response object
     result = get_uf_data(email,program,deployment,language)
