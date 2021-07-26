@@ -98,37 +98,37 @@ def get_db_connection() -> Connection:
 def questions(program,language,deployment):
     connection: Connection = get_db_connection()
     delimiter = '***'
-    questions_fields=['id','name','question_label','type','data','data_other','required','constraint','relevant','choice_list','default','hint']
+    questions_fields=['name','question_label','type','data','data_other','required','constraint','relevant','choice_list','default','hint']
     questions_columns = questions_fields 
-    choices_fields=['choice_id','choice_list','choice_label','value']
+    choices_fields=['choice_list','choice_label','value']
     choices_columns = choices_fields
     
     choices_columnsString = ""
     questions_columnsString = ""
     for c in choices_columns:
-        choices_columnsString += 'c."' + c + '",'
+        choices_columnsString += '"' + c + '",'
     for c in questions_columns:
         questions_columnsString += '"' + c + '",'
 
     query = '''
                 SELECT ''' + choices_columnsString.rstrip(",") + ''' 
-                FROM uf_choices c
-                JOIN uf_questions q
-                ON c.choice_list = q.choice_list
-                AND c.programid = q.programid
-                WHERE q.programid = '%s' 
-                AND q.language = '%s'
-                AND q.deploymentnumber = %s
-                ORDER by q."order",c."order";
- 
+                FROM uf_choices
+                WHERE programid = '%s' 
+                AND language = '%s'
+                AND deploymentnumber = %s
+                ORDER by choice_list,"order";
+                
                 SELECT '%s';
+
             ''' % (program,language,deployment,delimiter) + '''
+                
                 SELECT ''' + questions_columnsString.rstrip(",") + '''
                 FROM uf_questions
                 WHERE programid = '%s' 
                 AND language = '%s'
                 AND deploymentnumber = %s
                 ORDER BY "order";
+
             ''' % (program,language,deployment)
 
     sqlResult=connection.run(query)
@@ -136,12 +136,15 @@ def questions(program,language,deployment):
     in_choices = True
     choiceLists = {}
     questions = []
+    id = 0  #used to provide unique id to all questions and choices, which is needed for vue
     for row in sqlResult:
         if in_choices and row[0] == delimiter:
             in_choices = False
             continue
         elif in_choices:
             choice = {}
+            choice['choice_id']=id  # vue depends on this key and its unique value
+            id += 1
             for (enum,value) in enumerate(row):
                 choice[choices_fields[enum]]=value
             list_name = choice.pop('choice_list')
@@ -151,6 +154,8 @@ def questions(program,language,deployment):
                 choiceLists[list_name] = [choice]
         else:
             question = {}
+            question['question_id']=id # vue depends on this key and its unique value
+            id += 1
             for (enum,value) in enumerate(row):
                 question[questions_fields[enum]]=value
             choice_list_name = question.pop('choice_list')
