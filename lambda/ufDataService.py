@@ -164,6 +164,7 @@ def get_progress(connection,user_email,program,deployment_number,language):
 
 def get_uf_data(user_email, program, deployment_number, language):
     all_data = {} 
+    url = "" #empty string means no more messages available to process
     connection: Connection = get_db_connection()
     
     sqlResponse = get_next_uuid(connection,program,deployment_number,language)
@@ -173,14 +174,13 @@ def get_uf_data(user_email, program, deployment_number, language):
         all_data.update({"uuid":uuid})
         metadata=get_uuid_metadata(connection,uuid)
         all_data.update(metadata)
-    
-        progress=get_progress(connection,user_email,program,deployment_number,language)
-        all_data.update(progress)
-
         #form the URL
         url = "https://downloads.amplio.org/" + program + "/deployment-" + deployment_number
-        url += "/" + language + "/" + uuid + ".mp3"
-        all_data.update({"url":url})
+        url += "/" + language + "/" + uuid + ".mp3"    
+    all_data.update({"url":url}) #empty string url means no more messages to process
+    progress=get_progress(connection,user_email,program,deployment_number,language)
+    all_data.update(progress)
+
 
     connection.close
     return all_data    
