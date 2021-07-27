@@ -61,13 +61,13 @@
   </transition>
 </div>
 
-<div id="modalsubmit">
+<div id="modalMessage">
   <transition name="fade" appear>
-    <div class="modal-overlay" v-if="noMessages!=''"></div>
+    <div class="modal-overlay" v-if="message!=''"></div>
   </transition>
   <transition name="pop" appear>
-    <div class="modal" role="dialog" v-if="noMessages!=''">
-      <h1 style="color:red" v-html="noMessages"></h1>
+    <div class="modal" role="dialog" v-if="message!=''">
+      <h1 style="color:red" v-html="message"></h1>
     </div>
   </transition>
 </div>
@@ -115,7 +115,7 @@
     </td>
   </tr>
   <tr><td>
-      <latest-audio :key="audioKey" @no_messages="showNoMessages" @network="updateConnected" @handleUseless="handleUseless" ref="audio" 
+      <latest-audio :key="audioKey" @no_messages="showNoAudios" @network="updateConnected" @handleUseless="handleUseless" ref="audio" 
       :userEmail="this.$route.query.email" :context="context" />
   </td></tr>
   <tr><td>
@@ -260,7 +260,7 @@ export default {
       connected: true,
       audioKey: 0,
       showModal: false,
-      noMessages: '',
+      message: '',
       showSubmitModal: false,
       submitStatus: null,
       questions: [],
@@ -417,21 +417,21 @@ export default {
         }
       }
     },
-    showNoMessages() {
+    showNoAudios() {
       if (this.context.totalReceivedMessages != -1) {
         // -1 indicated that this number hasn't been loaded yet.
         if(this.context.totalReceivedMessages == 0) {
-          this.noMessages = "No messages are ready to process yet.";
+          this.message = "No messages are ready to process yet.";
         } else {
           let remaining = this.context.totalReceivedMessages - this.$refs.audio.total_analyzed;
           if (remaining == 0) {
-            this.noMessages = "Finished! There are no more messages to process!";          
+            this.message = "Finished! There are no more messages to process!";          
           } else {
-            this.noMessages = "There " + (remaining==1?"is ":"are ") + String(remaining) + " remaining messages that are still being processed by others.<BR/>They will be available for you to process within 15 minutes.";
+            this.message = "There " + (remaining==1?"is ":"are ") + String(remaining) + " remaining messages that are still being processed by others.<BR/>They will be available for you to process within 15 minutes.";
           }
         }
         setTimeout(()=> {
-          this.noMessages = "";
+          this.message = "";
         },5000);
       }
     },
@@ -449,6 +449,7 @@ export default {
       const action = "https://ckz0f72fjf.execute-api.us-west-2.amazonaws.com/default/ufProcess";      
       Vue.axios.post(action,this.form, {headers: {'Authorization': `${this.$token}`}})
       .then(response=>{
+          this.connected=true;
           console.log(response.data);
           //TODO: What if Lambda function says it wasn't submitted properly
           this.showSubmitModal = true;
@@ -461,6 +462,11 @@ export default {
           //TODO: what if network just went away before hitting submit - is data lost? can it retry?
           console.log(err);
           this.connected = false;
+          this.message = 'There is no Internet connection right now.  Your survey has not been submitted yet.<BR>Please try submitting again when you have Internet.';
+          setTimeout(()=> {
+            this.showSubmitModal = false;
+            this.message = '';
+          },5000);
       });
       this.submitStatus = '';
     },
