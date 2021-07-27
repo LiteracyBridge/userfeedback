@@ -63,14 +63,11 @@
 
 <div id="modalsubmit">
   <transition name="fade" appear>
-    <div class="modal-overlay" v-if="noMessages"></div>
+    <div class="modal-overlay" v-if="noMessages!=''"></div>
   </transition>
   <transition name="pop" appear>
-    <div class="modal" role="dialog" v-if="noMessages">
-      <h1 style="color:red">
-        <span v-if="context.totalReceivedMessages > 0">No more messages to process!</span>
-        <span v-else>No messages are ready to process yet.</span>          
-        </h1>
+    <div class="modal" role="dialog" v-if="noMessages!=''">
+      <h1 style="color:red" v-html="noMessages"></h1>
     </div>
   </transition>
 </div>
@@ -177,24 +174,19 @@
                       <div v-if="choice.data_other" style="text-indent: 20px">
                             <input class="mr-3" @change="clearOtherAndSubChoices(null,choice)" :type="choice.type" :name="choice.name" :id="choice.question_id+'-other'" value="other" v-model="form.responses[choice.data]"/>
                             <label :for="choice.choice_id+'-other'">Other</label>
-                            <!-- <input class="ml-3 text_input" @focus="form.responses[choice.data].push('other')" type="text" :name="choice.name+'-othertxt'" :id="choice.choice_id+'-othertxt'" v-model="form.responses[choice.data_other]"/> -->
                             <div v-if="String(form.responses[choice.data]).includes('other')">
-                              <textarea rows="2" @focus="form.responses[choice.data].push('other')" class="ml-16 w-auto outline-grey" :name="choice.name+'-othertxt'" :id="choice.choice_id+'-othertxt'" v-model="form.responses[choice.data_other]"/>
+                              <textarea rows="2" cols="45" class="ml-9 w-auto outline-grey" :name="choice.name+'-othertxt'" :id="choice.choice_id+'-othertxt'" v-model="form.responses[choice.data_other]"/>
                             </div>
                       </div>
 
                       </div>
                   </div>
-                  <!-- <div v-if="question.data_other" :key="question.question_id+'-other'"> -->
                   <div v-if="question.data_other">
-                      <!-- <input class="mr-3" @change="clearOtherAndSubChoices(null,question)" :type="question.type" :name="question.name" :id="question.question_id+'-other'" :ref="question.question_id+'-other'" value="other" v-model="form.responses[question.data]" /> -->
                       <input class="mr-3" @change="clearOtherAndSubChoices(null,question)" :type="question.type" :name="question.name" :id="question.question_id+'-other'" value="other" v-model="form.responses[question.data]" />
                       <label :for="question.question_id+'-other'">Other</label>
                       <span >
-                          <!-- <input class="ml-3 text_input" @focus="(Array.isArray(form.responses[question.data]) && form.responses[question.data].length > 0 ? form.responses[question.data].push('other') : form.responses[question.data]='other')" type="text" name="question.name+'-othertxt'" :id="question.question_id+'othertxt'" v-model="form.responses[question.data_other]"/> -->
-                          <!-- <input class="ml-3 text_input" @focus="form.responses[question.data].push('other')" type="text" name="question.name+'-othertxt'" :id="question.question_id+'-othertxt'" v-model="form.responses[question.data_other]"/> -->
                           <div v-if="String(form.responses[question.data]).includes('other')">
-                            <textarea rows="2" @focus="form.responses[question.data].push('other')" class="ml-16 w-auto outline-grey" :name="question.name+'-othertxt'" :id="question.choice_id+'-othertxt'" v-model="form.responses[question.data_other]"/>
+                            <textarea rows="2" cols="45" class="ml-9 w-auto outline-grey" :name="question.name+'-othertxt'" :id="question.choice_id+'-othertxt'" v-model="form.responses[question.data_other]"/>
                           </div>
                       </span>
                   </div>
@@ -204,8 +196,8 @@
             <td style="text-align: right">
               <div class="float-right">
                 <v-tooltip
-                  v-if="requiredCompleted  != ''"
-                  :text="'Questions still required:  #'+checkCompleted()"
+                  v-if="this.checkCompleted()!=''"
+                  :text="checkCompleted()"
                   position="right"
                   class="my-2 ml-2"
                   :width="200"
@@ -218,7 +210,7 @@
                 <VButton
                   label="SUBMIT"
                   variant="success"
-                  :disabled="requiredCompleted != ''"
+                  :disabled="this.checkCompleted()!=''"
                   :iconL="submitStatus === 'submitting' ? 'spinner' : ''"
                   :iconLPulse="submitStatus === 'submitting'"
                   @click="handleSubmit"
@@ -268,7 +260,7 @@ export default {
       connected: true,
       audioKey: 0,
       showModal: false,
-      noMessages: false,
+      noMessages: '',
       showSubmitModal: false,
       submitStatus: null,
       questions: [],
@@ -361,7 +353,7 @@ export default {
         selectedProgramCode:"CARE-ETH-GIRLS",
         selectedDeployment:1,
         selectedLanguageCode:"aar",
-        totalReceivedMessages: 123 
+        totalReceivedMessages: -1 
       }
     }
   },
@@ -426,10 +418,22 @@ export default {
       }
     },
     showNoMessages() {
-          this.noMessages = true;
-          setTimeout(()=> {
-            this.noMessages = false;
-          },4000);
+      if (this.context.totalReceivedMessages != -1) {
+        // -1 indicated that this number hasn't been loaded yet.
+        if(this.context.totalReceivedMessages == 0) {
+          this.noMessages = "No messages are ready to process yet.";
+        } else {
+          let remaining = this.context.totalReceivedMessages - this.$refs.audio.total_analyzed;
+          if (remaining == 0) {
+            this.noMessages = "Finished! There are no more messages to process!";          
+          } else {
+            this.noMessages = "There " + (remaining==1?"is ":"are ") + String(remaining) + " remaining messages that are still being processed by others.<BR/>They will be available for you to process within 15 minutes.";
+          }
+        }
+        setTimeout(()=> {
+          this.noMessages = "";
+        },5000);
+      }
     },
     handleUseless() {
       this.form.useless = true;
@@ -470,7 +474,6 @@ export default {
           field = '0'+field;
         }
         field = 'resp_' + field;
-        // console.log(field);
         this.form.responses[field]=[];
         this.form.responses[field+'_o']=[];
       }
@@ -480,7 +483,6 @@ export default {
       }
     },
     escape() {
-      this.checkCompleted();
       if (this.showModal) {
         this.showModal = false;
       }
@@ -550,7 +552,10 @@ export default {
         }
     },
     checkCompleted() {
-        let completed = "";
+      let completed = "";
+      if (!this.$refs.audio || (this.$refs.audio && this.$refs.audio.url=='')) {
+          completed = "Nothing is loaded.";
+      } else {
         let questionNumber = 0;
         for (var q of this.questions) {
           questionNumber++;
@@ -572,15 +577,13 @@ export default {
           }
         }
         if (completed.length > 1) {
-          completed = completed.substring(0, completed.length - 1);
+          completed = 'Questions still required:  #' + completed.substring(0, completed.length - 1);
         }
-        return completed;
+      }
+      return completed;
     },
   },
   computed: {
-    requiredCompleted() {
-      return this.checkCompleted();
-    },
     deployments() {
       var program = this.programs.filter((p)=>{
         return p.code==this.context.selectedProgramCode;
@@ -601,7 +604,6 @@ export default {
   },
   created() {
     this.loadQuestions();
-    //this.form.responses=JSON.parse('{"resp_10":[],"resp_11":[],"resp_12":[]}');
   }
 };
 </script>
@@ -688,6 +690,12 @@ td {
 ul {
   list-style-type: none;
 }
+
+select:focus {
+  outline:1px solid #4D90FE; 
+  border:1px solid #4D90FE;
+ }
+
 
 .text_input {
   border-color: transparent;

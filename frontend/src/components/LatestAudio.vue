@@ -41,30 +41,53 @@
         <table style="border: 2px solid #ddd" width="100%">
             <span style="text-align:left"> Filename: {{getUUID()}}</span>
             <tr><td style="padding: 10px">
-                <div v-if="this.fullyLoaded" class="audiometadata">
-                    <span style="font-weight:bold">Location:</span> {{audioMetadata.community}}, {{audioMetadata.district}}, {{audioMetadata.region}} 
-                    <span style="font-weight:bold"> || Model:</span> {{audioMetadata.listening_model}} 
-                    <span style="font-weight:bold"> || Group:</span> {{audioMetadata.group}} 
-                    <span style="font-weight:bold" v-if="audioMetadata.title"><br/>Last message:</span> {{audioMetadata.title}} 
+                <div class="audiometadata">
+                    <div v-if="url!=''">
+                        <!-- for some reason this v-if has to be in this second-level div; otherwise, the audio key controls do not work.-->
+                        <span style="font-weight:bold">Location:</span> {{audioMetadata.community}}, {{audioMetadata.district}}, {{audioMetadata.region}} 
+                        <span class="ml-3" style="font-weight:bold"> Model:</span> {{audioMetadata.listening_model}} 
+                        <span class="ml-3" style="font-weight:bold"> Group:</span> {{audioMetadata.group}} 
+                        <span v-if="audioMetadata.title" style="font-weight:bold"><br/>Last message:</span> {{audioMetadata.title}} 
+                    </div>
                 </div>
-                <div tabindex="0" class="flex justify-center noFocusOutline" ref="audioDiv" @keydown="checkKey">
+                <div tabindex="0" class="flex justify-center noFocusOutline" ref="audioDiv" @keypress.space.prevent @keydown="checkKey">
                     <audio ref="audio" @timeupdate="checkLoop" @canplaythrough="loaded" tabindex="-1" controls preload="auto" autoplay :src="url">
                         Your browser doesn't support the HTML5 audio element.
                     </audio>
                 </div>
-                <div v-if="this.fullyLoaded" class="audiometadata">
-                <!-- <div> -->
-                    <span style="font-weight:bold">Speed:</span>  {{speed}}  
-                    <span v-if="this.readyToLoop()" style="font-weight:bold"> || Looping  </span><span>{{loopRangeText}}</span>
+                <div v-if="url!=''" class="audiometadata">
+                    <span style="font-weight:bold">Speed:</span><span class="mr-3">  {{speed}}</span>  
+                    <span v-if="this.readyToLoop()" style="font-weight:bold"> Looping  </span><span>{{loopRangeText}}</span>
                 </div>
-                <div v-if="!this.fullyLoaded">
+                <div v-if="url!='' && !this.fullyLoaded">
                     Loading...
                 </div>
-                <div style="text-align:right">
-                        <button type="button" class="button_warning" @click="$emit('handleUseless')">
+                <!-- <div style="text-align:right">
+                        <button type="button" :disabled="url==''" class="button_warning" @click="$emit('handleUseless')">
                         Mark as "Not Feedback"
                         </button>
-                </div>
+                </div> -->
+              <div class="float-right">
+                <v-tooltip
+                  v-if="url==''"
+                  text="Nothing is loaded."
+                  position="right"
+                  class="my-2 ml-2"
+                  :width="200"
+                >
+                  <font-awesome-icon
+                    class="text-orange-600"
+                    icon="exclamation-circle"
+                  />
+                </v-tooltip>
+                <VButton
+                  label='Mark as "Not Feedback"'
+                  variant="button_warning"
+                  :disabled="url==''"
+                  @click="$emit('handleUseless')"
+                />
+              </div>
+
             </td></tr>
         </table>
     </div>    
@@ -73,15 +96,29 @@
 import axios from 'axios'
 import Vue from 'vue'
 import VueAxios from 'vue-axios'
+import VButton from '@/components/VButton';
+import VTooltip from '@/components/VTooltip';
+
 Vue.use(VueAxios,axios)
 var a;
 export default {
     name:"LatestAudio",
+    components: {
+        VButton,
+        VTooltip
+    },
     props: ["userEmail","context"],
     connected: true,
     data() {
         return {
-            audioMetadata:undefined,
+            audioMetadata:{
+                community:'',
+                district:'',
+                region:'',
+                listening_model:'',
+                group:'',
+                title:''    
+            },
             url:undefined,
             speed:1,
             fullyLoaded:false,
@@ -140,7 +177,7 @@ export default {
                 }
             }                
         },
-        updateUrl() {   
+        updateUrl() {    
             const request = "https://ckz0f72fjf.execute-api.us-west-2.amazonaws.com/default/ufDataService?"
                 + "email=" + this.userEmail
                 + "&program=" + this.context.selectedProgramCode
@@ -156,19 +193,17 @@ export default {
                     this.$emit('network',true);
                     this.connected = true;
                 }
-                if (Object.keys(response.data).length == 0) {
+                this.audioMetadata = response.data;
+                this.url=this.audioMetadata.url;
+                if (this.url == '') {
                     this.$emit('no_messages');
                 } else {
-                    this.audioMetadata = response.data;
-                    this.url=this.audioMetadata.url;
                     this.filename = unescape(this.url.substring(this.url.lastIndexOf('/')+1)); 
                     this.fullyLoaded = false;
-                    if (this.$refs.audio) {
-                        this.$refs.audio.load();
-                        this.setAudioFocus();                    
-                    };
-                    console.log("new URL:"+this.audioMetadata.url);
+                    this.$refs.audio.load();
+                    this.setAudioFocus();
                 }
+                console.log("new URL:"+this.audioMetadata.url);
             }).catch(err => {
                 console.log("caught:"+err)
                 this.$emit('network',false);
@@ -205,6 +240,7 @@ export default {
         },
         checkKey(e) {
             switch(e.code) {
+                case "Space":
                 case "KeyP":
                     this.playPause();
                     break;
@@ -246,8 +282,6 @@ export default {
                 case "Backspace":
                     // confirm that the audio is useless
                     break;
-                // default:
-                //     console.log(e.code);
             }
         },
         setAudioFocus() {
