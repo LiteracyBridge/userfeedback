@@ -8,6 +8,8 @@ import pg8000.native
 from botocore.exceptions import ClientError
 from pg8000 import Connection, Cursor
 
+MINIMUM_SECONDS_FILTER = 5   # filters out any UF messages of less than this # of seconds
+MAXIMUM_MINUTES_CHECKOUT = 15  # re-issues the same UUID after this many minutes if the form hasn't yet been submitted
 
 ########################################################################################################################
 # Get a database connection
@@ -95,11 +97,25 @@ def get_db_connection() -> Connection:
 
 ########################################################################################################################
 
-# noinspection SqlNoDataSourceInspection,SqlResolve
+def get_submitted_forms(connection, program, deployment_number, language, email, timezoneOffset):    
+    command = '''SELECT a.message_uuid, date_trunc('second',submit_time AT TIME ZONE INTERVAL ' '''+timezoneOffset+''' ') 
+                    FROM uf_messages m 
+                    JOIN uf_analysis a ON m.message_uuid = a.message_uuid
+                    WHERE programid = :program and deploymentnumber = :deployment_number
+                    and length_seconds >= :min_sec and language = :language  
+                    and submit_time IS NOT NULL and analyst_email = :email
+                    ORDER BY submit_time DESC'''
+    sqlforms = connection.run(command,program=program,deployment_number=deployment_number,language=language,email=email,timezoneOffset=timezoneOffset,min_sec=MINIMUM_SECONDS_FILTER)
+    forms = []
+    for f in sqlforms:
+        form = {}
+        form['uuid']=f[0]
+        form['submitted']=f[1]
+        forms.append(form)
+    return forms
+
+
 def get_next_uuid(connection, program, deployment_number, language):
-    MINIMUM_SECONDS_FILTER = 5   # filters out any UF messages of less than this # of seconds
-    MAXIMUM_MINUTES_CHECKOUT = 15  # re-issues the same UUID after this many minutes if the form hasn't yet been submitted
-    
     command = '''INSERT INTO uf_analysis (message_uuid,start_time)
                     SELECT message_uuid, NOW() FROM public.uf_messages
                     WHERE programid = :program and deploymentnumber = :deployment_number
@@ -162,15 +178,16 @@ def get_progress(connection,user_email,program,deployment_number,language):
     return resp
 
 
-def get_uf_data(user_email, program, deployment_number, language):
+def get_uf_data(connection, user_email, program, deployment_number, language, uuid):
     all_data = {} 
     url = "" #empty string means no more messages available to process
-    connection: Connection = get_db_connection()
     
-    sqlResponse = get_next_uuid(connection,program,deployment_number,language)
+    if uuid is None:
+        sqlResponse = get_next_uuid(connection,program,deployment_number,language)
+        if len(sqlResponse) > 0:
+            uuid = sqlResponse[0][0]
     # check if there are any uf_messages to process for this program/deployment/language
-    if len(sqlResponse) > 0:
-        uuid = sqlResponse[0][0]
+    if uuid is not None:
         all_data.update({"uuid":uuid})
         metadata=get_uuid_metadata(connection,uuid)
         all_data.update(metadata)
@@ -188,31 +205,56 @@ def get_uf_data(user_email, program, deployment_number, language):
 
 def lambda_handler(event, context):
     start = time.time_ns()
+    uuid = None
 
     # Parse out query string params
     email = event['queryStringParameters']['email']
     program = event['queryStringParameters']['program']
     deployment = str(event['queryStringParameters']['deployment'])
     language = event['queryStringParameters']['language']
-    
-    # Get body of response object
-    result = get_uf_data(email,program,deployment,language)
+    if 'uuid' in event['queryStringParameters']:
+        uuid = event['queryStringParameters']['uuid']
+    if 'timezoneOffset' in event['queryStringParameters']:
+        timezoneOffset = event['queryStringParameters']['timezoneOffset']
+
+    connection: Connection = get_db_connection()
+
+    if uuid == 'all':
+        result = get_submitted_forms(connection, program, deployment, language, email, timezoneOffset)
+    else:
+        # Get body of response object
+        result = get_uf_data(connection, email,program,deployment,language, uuid)
 
     #Return the response object
     return {
     "statusCode": 200,
     "headers": {"Access-Control-Allow-Origin": "*","Content-Type":"application/json"},
-    "body": json.dumps(result)
+    "body": json.dumps(result,default=str)
     }
 
 
 if __name__ == '__main__':
     def test_main():
         submit_event = {'queryStringParameters': 
-                        {'email':'cliff@amplio.org',
-                        'program': 'CARE-ETH-GIRLS',
-                        'deployment': 1,\
+                        {'email':'Abdu.Yimam@care.org',
+                        'program': 'CARE-ETH-BOYS',
+                        'deployment': 1,
                         'language': 'aar'}
+                        }
+        submit_event2 = {'queryStringParameters': 
+                        {'email':'Abdu.Yimam@care.org',
+                        'program': 'CARE-ETH-BOYS',
+                        'deployment': 1,
+                        'language': 'aar',
+                        'uuid': '0634ebc7-78ac-5dbe-912d-3f521f63c533'}
+                        }
+        submit_event3 = {'queryStringParameters': 
+                        {'email':'Abdu.Yimam@care.org',
+                        'program': 'CARE-ETH-BOYS',
+                        'deployment': 1,
+                        'language': 'aar',
+                        'uuid': 'all',
+                        'timezoneOffset': '-420 minutes'}
                         }
         print(lambda_handler(submit_event, None))
         
