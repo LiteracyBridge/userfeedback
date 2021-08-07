@@ -177,29 +177,35 @@ def num_from_array(array):
     if len(array) == 0:
         return 0
     else:
-        return array[0][2]
+        return array[0][3]
 
 
 def get_progress(connection,user_email,program,deployment_number,language):
     progress = {}
-    command =    '''SELECT (analyst_email=:user) AS for_user, is_useless, count(*) 
-                    FROM uf_analysis a
-                    JOIN uf_messages m
+    command =    '''SELECT (submit_time IS NULL), (analyst_email=:user), is_useless, count(*) 
+                    FROM uf_messages m
+                    LEFT JOIN uf_analysis a
                     ON a.message_uuid=m.message_uuid
                     WHERE m.programid=:program AND deploymentnumber=:deployment_number AND language=:language
-                    AND submit_time IS NOT NULL
-                    GROUP BY (analyst_email=:user),is_useless
-                    order by (analyst_email=:user),is_useless'''
-    sqlprogress=connection.run(command,user=user_email,program=program,deployment_number=deployment_number,language=language)
-    other_feedback = num_from_array(list(filter(lambda r:r[0]==False and r[1]==False,sqlprogress)))
-    other_useless = num_from_array(list(filter(lambda r:r[0]==False and r[1]==True,sqlprogress)))
-    user_feedback = num_from_array(list(filter(lambda r:r[0]==True and r[1]==False,sqlprogress)))
-    user_useless = num_from_array(list(filter(lambda r:r[0]==True and r[1]==True,sqlprogress)))
+                    AND length_seconds >= :min_length
+                    GROUP BY (submit_time IS NULL),(analyst_email=:user),is_useless
+                    ORDER BY (submit_time IS NULL),(analyst_email=:user),is_useless'''
+    sqlprogress=connection.run(command,user=user_email,program=program,deployment_number=deployment_number,language=language,min_length=MINIMUM_SECONDS_FILTER)
+    other_feedback = num_from_array(list(filter(lambda r:r[1]==False and r[2]==False,sqlprogress)))
+    other_useless = num_from_array(list(filter(lambda r:r[1]==False and r[2]==True,sqlprogress)))
+    user_feedback = num_from_array(list(filter(lambda r:r[1]==True and r[2]==False,sqlprogress)))
+    user_useless = num_from_array(list(filter(lambda r:r[1]==True and r[2]==True,sqlprogress)))
+    not_analyzed = num_from_array(list(filter(lambda r:r[0]==True,sqlprogress)))
+    
+    user_recordings = user_feedback + user_useless
+    other_recordings = other_feedback + other_useless
+    all_recordings = user_recordings + other_recordings + not_analyzed
+    
     progress.update({"others_feedback":other_feedback})
-    progress.update({"others_recordings":(other_feedback + other_useless)})
+    progress.update({"others_recordings":other_recordings})
     progress.update({"users_feedback":user_feedback})
-    progress.update({"users_recordings":(user_feedback + user_useless)})
-    #progress = {'progress':progress}
+    progress.update({"users_recordings":user_recordings})
+    progress.update({'totalReceivedMessages':all_recordings})
     return progress
 
 
@@ -262,9 +268,15 @@ def lambda_handler(event, context):
 
 if __name__ == '__main__':
     def test_main():
-        submit_event = {'queryStringParameters': 
+        submit_event1a = {'queryStringParameters': 
                         {'email':'Abdu.Yimam@care.org',
                         'program': 'CARE-ETH-BOYS',
+                        'deployment': 1,
+                        'language': 'aar'}
+                        }
+        submit_event1b = {'queryStringParameters': 
+                        {'email':'cliff@amplio.org',
+                        'program': 'CARE-ETH-GIRLS',
                         'deployment': 1,
                         'language': 'aar'}
                         }
@@ -283,6 +295,6 @@ if __name__ == '__main__':
                         'uuid': 'all',
                         'timezoneOffset': '-420 minutes'}
                         }
-        print(lambda_handler(submit_event, None))
+        print(lambda_handler(submit_event1b, None))
         
     test_main()
