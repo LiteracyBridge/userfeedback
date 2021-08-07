@@ -9,14 +9,14 @@ from botocore.exceptions import ClientError
 from pg8000 import Connection, Cursor
 
 MINIMUM_SECONDS_FILTER = 5   # filters out any UF messages of less than this # of seconds
-MAXIMUM_MINUTES_CHECKOUT = 15  # re-issues the same UUID after this many minutes if the form hasn't yet been submitted
+MAXIMUM_MINUTES_CHECKOUT = 5  # re-issues the same UUID after this many minutes if the form hasn't yet been submitted
 
 ########################################################################################################################
 # Get a database connection
 
 def _get_secret() -> dict:
     # Name of the secrets in secrets manager.
-    secret_name = "lb_stats_access2" #lb_stats_test
+    secret_name = "lb_stats_test" #lb_stats_access2
     region_name = "us-west-2"
 
     result = None
@@ -154,7 +154,7 @@ def get_next_uuid(connection, program, deployment_number, language):
 
 
 def get_uuid_metadata(connection,uuid):
-    resp = {}
+    audioMetadata = {}
     command =    '''SELECT title,region,district,communityname,groupname,listening_model
                     FROM uf_messages m
                     JOIN recipients r
@@ -164,13 +164,14 @@ def get_uuid_metadata(connection,uuid):
                     WHERE message_uuid = :uuid'''
 
     sqlmeta=connection.run(command,uuid=uuid)[0]
-    resp.update({"title":sqlmeta[0]})
-    resp.update({"region":sqlmeta[1]})
-    resp.update({"district":sqlmeta[2]})
-    resp.update({"community":sqlmeta[3]})
-    resp.update({"group":sqlmeta[4]})
-    resp.update({"listening_model":sqlmeta[5]})
-    return resp
+    audioMetadata.update({"title":sqlmeta[0]})
+    audioMetadata.update({"region":sqlmeta[1]})
+    audioMetadata.update({"district":sqlmeta[2]})
+    audioMetadata.update({"community":sqlmeta[3]})
+    audioMetadata.update({"group":sqlmeta[4]})
+    audioMetadata.update({"listening_model":sqlmeta[5]})
+    #audioMetadata = {'audioMetadata':audioMetadata}
+    return audioMetadata
 
 def num_from_array(array):
     if len(array) == 0:
@@ -180,7 +181,7 @@ def num_from_array(array):
 
 
 def get_progress(connection,user_email,program,deployment_number,language):
-    resp = {}
+    progress = {}
     command =    '''SELECT (analyst_email=:user) AS for_user, is_useless, count(*) 
                     FROM uf_analysis a
                     JOIN uf_messages m
@@ -194,15 +195,16 @@ def get_progress(connection,user_email,program,deployment_number,language):
     other_useless = num_from_array(list(filter(lambda r:r[0]==False and r[1]==True,sqlprogress)))
     user_feedback = num_from_array(list(filter(lambda r:r[0]==True and r[1]==False,sqlprogress)))
     user_useless = num_from_array(list(filter(lambda r:r[0]==True and r[1]==True,sqlprogress)))
-    resp.update({"others_feedback":other_feedback})
-    resp.update({"others_recordings":(other_feedback + other_useless)})
-    resp.update({"users_feedback":user_feedback})
-    resp.update({"users_recordings":(user_feedback + user_useless)})
-    return resp
+    progress.update({"others_feedback":other_feedback})
+    progress.update({"others_recordings":(other_feedback + other_useless)})
+    progress.update({"users_feedback":user_feedback})
+    progress.update({"users_recordings":(user_feedback + user_useless)})
+    #progress = {'progress':progress}
+    return progress
 
 
 def get_uf_data(connection, user_email, program, deployment_number, language, uuid):
-    all_data = {} 
+    all_data = {"audioMetadata":{},"progress":{}} 
     url = "" #empty string means no more messages available to process
     
     if uuid is None:
@@ -210,18 +212,18 @@ def get_uf_data(connection, user_email, program, deployment_number, language, uu
         if len(sqlResponse) > 0:
             uuid = sqlResponse[0][0]
     else:
-        all_data.update(get_form(connection,uuid))
+        all_data["audioMetadata"].update(get_form(connection,uuid))
     # check if there are any uf_messages to process for this program/deployment/language
     if uuid is not None:
-        all_data.update({"uuid":uuid})
         metadata=get_uuid_metadata(connection,uuid)
-        all_data.update(metadata)
+        metadata.update({"uuid":uuid})
+        all_data["audioMetadata"].update(metadata)
         #form the URL
         url = "https://downloads.amplio.org/" + program + "/deployment-" + deployment_number
         url += "/" + language + "/" + uuid + ".mp3"    
-    all_data.update({"url":url}) #empty string url means no more messages to process
+    all_data["audioMetadata"].update({"url":url}) #empty string url means no more messages to process
     progress=get_progress(connection,user_email,program,deployment_number,language)
-    all_data.update(progress)
+    all_data["progress"].update(progress)
 
 
     connection.close
@@ -281,6 +283,6 @@ if __name__ == '__main__':
                         'uuid': 'all',
                         'timezoneOffset': '-420 minutes'}
                         }
-        print(lambda_handler(submit_event2, None))
+        print(lambda_handler(submit_event, None))
         
     test_main()
