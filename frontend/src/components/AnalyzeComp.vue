@@ -1,10 +1,9 @@
 <template>
-<div @keydown.esc="escape" >
-
-  <nav-bar :programs="programs" :selectedProgramCode="context.selectedProgramCode" @changed="updatedProgram"/>
-
-  <div>
-      <div  v-if="!connected" style="color:red; font-size:1.5em; font-weight:bolder; text-align:center; padding: 0px">No Connection!</div>    
+<div @keydown.esc="escape">
+  <nav-bar :programs="programs" :selectedProgramCode="context.selectedProgramCode" :email="this.$route.query.email" @changed="updatedProgram"/>
+  <div v-if="!connected" style="color:red; font-size:1.5em; font-weight:bolder; text-align:center; padding: 0px">No Connection!</div>    
+  <div class="flex">
+      <div v-if="nextUUID!=null" @click="$emit('all')" style="color:#0000ee;font-weight:bold" class="cursor-pointer text-2xl underline">View all responses</div>    
       <div>
         <span>
           <depl-lang-select :deployments="deployments" :languages="languages" 
@@ -12,27 +11,28 @@
             @langChanged="updatedLanguage" @deplChanged="updatedDeployment"
           />
         </span>
-        <span style="float:right">
-          <instructions/>
-        </span>
       </div>
-      <div style="padding: 0px">
-          <stats :progress="progress" />
-      </div>
-
-      <div v-if="audioMetadata.url!=''">
-          <audio-player :key="audioKey" @srcError="updateUrl" @network="updateConnected" ref="audio" :audioMetadata="audioMetadata" />
-      </div>
-      <br/>
-      <div v-if="audioMetadata.url!=''" >
-          <survey :context="context" :uuid="audioMetadata.uuid" @submitted="updateUrl" @network="updateConnected"/>
-      </div>
-
-      <div v-if="audioMetadata.url==''"><td style="color:red; text-align:center" v-html="showNoAudios"/></div>
   </div>
-  <br/>
-  <p>Need help? Contact us at support@amplio.org</p>
-
+  <div style="padding: 0px">
+          <stats :progress="progress" />
+  </div>
+  <div class="absolute right-0">
+    <instructions/>
+  </div>
+  <hr style="height:2px;border-width:0;background-color:gray">
+  <div v-if="audioMetadata.url!=''">
+      <audio-player :key="audioKey" @srcError="updateUrl" @network="updateConnected" @next="getNext" ref="audio" :audioMetadata="audioMetadata" />
+  </div>
+  <div v-if="audioMetadata.url!=''" >
+      <survey :context="context" :uuid="audioMetadata.uuid" :submission="audioMetadata.submission" @next="getNext" @checkboxes="setCheckboxes" @network="updateConnected"/>
+  </div>
+  <div v-if="audioMetadata.url==''">
+    <span style="color:red; text-align:center" v-html="showNoAudios"/>
+  </div>
+  <div>
+    <br/>
+    <p>Need help? Contact us at support@amplio.org</p>
+  </div>
  </div>
 </template>
 
@@ -50,7 +50,20 @@ import VueAxios from 'vue-axios'
 Vue.use(VueAxios,axios)
 
 export default {
-  name: "Home",
+  name: "AnalyzeComp",
+  props:{
+    nextUUID: {
+      default:null
+    }
+  },
+  watch: {
+    nextUUID (newUUID,oldUUID) {
+      this.uuid = newUUID;
+      if (newUUID != null) {
+        this.updateUrl();
+      }
+    }
+  },
   components: {
     NavBar,
     DeplLangSelect,
@@ -61,13 +74,15 @@ export default {
   },
   data() {
     return {
+      uuid:'',
+      previousSubmission: false,
       audioMetadata:{},
       progress:{totalReceivedMessages: -1},
       connected: true,
       audioKey: 0,
       showModal: false,
       message: '',
-      questions: [],
+      checkboxes:[],
       form: {},
       programs: [{
         code:"CARE-ETH-GIRLS",
@@ -94,12 +109,21 @@ export default {
     }
   },
   methods: {
-    updateUrl() {    
+    getNext() {
+      if (this.nextUUID != null) {
+        this.$emit("next");
+      } else {
+        this.uuid = null;
+        this.updateUrl();
+      }    
+    },
+    updateUrl() {  
       const request = "https://ckz0f72fjf.execute-api.us-west-2.amazonaws.com/default/ufTDataService?"
           + "email=" + this.$route.query.email
           + "&program=" + this.context.selectedProgramCode
           + "&deployment=" + this.context.selectedDeployment
-          + "&language=" + this.context.selectedLanguageCode;
+          + "&language=" + this.context.selectedLanguageCode
+          + ((this.uuid)?"&uuid="+this.uuid+"&array="+JSON.stringify(this.checkboxes):"")
       // Vue.axios.interceptors.request.use(request => {console.log('Starting Request', JSON.stringify(request, null, 2)) return request });
       console.log("updateUrl:"+request);
       Vue.axios.get(request,{headers: {'Authorization': `${this.$token}`}})
@@ -113,12 +137,20 @@ export default {
           if (this.audioMetadata.url != '') {
               let filename = unescape(this.audioMetadata.url.substring(this.audioMetadata.url.lastIndexOf('/')+1));
               this.audioMetadata["filename"]=filename; 
+              if (this.audioMetadata.submission) {
+                this.previousSubmission = true;
+              }
           }
           console.log("new URL:"+this.audioMetadata.url);
       }).catch(err => {
           console.log("caught:"+err)
           this.connected = false;
       })
+    },
+    setCheckboxes(list) {
+      // this is used to pass to lambda fct when requesting a specific uuid form submission
+      // some fields need to be in an array (checkboxes); while others should not (select boxes)
+      this.checkboxes = list;
     },
     updateConnected(isConnected) {
       this.connected = isConnected;
@@ -156,24 +188,29 @@ export default {
     },
     showNoAudios() {
       let message="NONE";
-      if (this.progress.totalReceivedMessages != -1) { // -1 indicated that this number hasn't been loaded yet.
-        if(this.progress.totalReceivedMessages == 0) {
-          message = "No messages are ready to process yet.";
-        } else {
-          let remaining = this.progress.totalReceivedMessages - (this.progress.others_recordings + this.progress.users_recordings);
-          if (remaining == 0) {
-            message = "Finished! There are no more messages to process!";          
+      if (this.$route.path=='/responses' && this.uuid == null) {
+        // Must be in Responses.vue, which is telling us that we are at the end of the list.
+        message = "Finished!  There are no more responses to review.";
+      } else {
+        if (this.progress.totalReceivedMessages != -1) { // -1 indicated that this number hasn't been loaded yet.
+          if(this.progress.totalReceivedMessages == 0) {
+            message = "No messages are ready to process yet.";
           } else {
-            var isAre;
-            var itThey;
-            if (remaining == 1) {
-              isAre = 'is ';
-              itThey = 'It ';
+            let remaining = this.progress.totalReceivedMessages - (this.progress.others_recordings + this.progress.users_recordings);
+            if (remaining == 0) {
+              message = "Finished! There are no more messages to process!";          
             } else {
-              isAre = 'are ';
-              itThey = 'They ';
+              var isAre;
+              var itThey;
+              if (remaining == 1) {
+                isAre = 'is ';
+                itThey = 'It ';
+              } else {
+                isAre = 'are ';
+                itThey = 'They ';
+              }
+              message = "There " + isAre + String(remaining) + " remaining message" +((remaining>1)?"s":"")  + " still being processed by others.<BR/>" + itThey + "will be available for you to process within 5 minutes.";
             }
-            message = "There " + isAre + String(remaining) + " remaining message" +((remaining>1)?"s":"")  + " still being processed by others.<BR/>" + itThey + "will be available for you to process within 5 minutes.";
           }
         }
       }
@@ -181,7 +218,8 @@ export default {
     }
   },
   mounted() {
-    if(this.$route.path=='/app') {
+    if(this.$route.path=='/analyze' || this.$route.path=='/responses') {
+      this.uuid = this.nextUUID;
       this.updateUrl();
     }
   }
@@ -189,38 +227,6 @@ export default {
 </script>
 
 <style>
-.navbar {
-  background-color:#289B6A;
-  color:white;
-  font-size:1.15em;
-  font-weight:bolder;
-  text-align:left;
-  line-height:40px;
-  vertical-align:middle;
-}
-
-.navbar select {
-  width:150px;
-  margin-right:25px;
-  vertical-align:middle;
-}
-
-.navbar span {
-  padding-left:5%;
-  padding-right:5%;
-  margin-bottom:20px;
-  vertical-align:middle;
-}
-
-.navbar span:first-child {
-  font-size:1.3em;
-}
-
-.navbar span:last-child {
-  float:right;
-  vertical-align:middle;
-}
-
 select {
   width:100px;
 }
@@ -271,20 +277,6 @@ body {
   display: grid;
   place-items: center;
   font-size: 1.4rem;
-}
-
-.button {
-  border: none;
-  color: #FFF;
-  background:dodgerblue;
-  appearance: none;
-  font: inherit;
-  font-size: 1.2rem;
-  font-weight:bolder;
-  padding: .5em 1em;
-  border-radius: .3em;
-  cursor: pointer;
-  margin: 3px;
 }
 
 :disabled {
