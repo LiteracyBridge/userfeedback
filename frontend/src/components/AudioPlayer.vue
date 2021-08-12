@@ -26,6 +26,10 @@
                     Loading...
                 </div>
             </td></tr>
+        <div v-if="audioMetadata.submission" class="float-right mt-2 mb-5 mr-5">
+            <button class="button" @click="$emit('next')">Skip</button>
+        </div>
+
         </table>
     </div>    
 </template>
@@ -62,8 +66,6 @@ export default {
     methods: {
         loadError() {
             if (this.audioMetadata.url != 'url') {
-                console.log(this.$refs.audio.networkState);
-                console.log(this.$refs.audio.error);
                 if (this.$refs.audio.error.code==4) {
                     console.log("missing mp3");
                     this.$emit("srcError",false);
@@ -207,7 +209,7 @@ export default {
     },
     mounted() {        
         a = this.$refs.audio;
-        if(this.$route.path=='/app') {
+        if(this.$route.path=='/analyze' || this.$route.path=='/responses') {
             this.fullyLoaded = false;
             this.$refs.audio.load();
             this.setAudioFocus();
