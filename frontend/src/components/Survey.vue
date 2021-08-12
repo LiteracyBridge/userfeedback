@@ -1,8 +1,17 @@
 <template>
   <div ref="top">
+    <div>
     <span style="float:left">Feedback Form</span>
-    <table width="100%" style="text-align:left;border: 2px solid #ddd;padding: 5px">
-        <div class="float-right mt-2 mb-5 mr-5">
+    </div>
+    <div v-if="hideUseless" class="box-content border-2 border-gray h-32 grid content-center text-red-500">
+        This audio recording was marked as "Not Feedback".  
+        Click "Edit" to update this information or skip to the next form.
+    </div>
+    <table v-else width="100%" style="text-align:left;border: 2px solid #ddd;padding: 5px">
+        <div v-if="previousSubmission" class="float-right mt-2 mb-5 mr-5">
+            <button class="bg-yellow-600 button float-right" @click="startEditing" :disabled="editing">Edit</button>
+        </div>
+        <div class="float-left mt-2 mb-5 ml-5">
             <VButton label='Mark as "Not Feedback"' variant="button_warning" :disabled="readOnly" @click="handleUseless"/>
         </div>
 
@@ -125,20 +134,27 @@ export default {
         VTooltip,
         VInput
     },
-    props: ["context","uuid"],
+    props: ["context","uuid","submission"],
+    watch: {
+        submission(newSubmission, oldSubmission) {
+            this.submission = newSubmission;
+            this.form = this.readySubmission;
+            console.log("readied submission");
+        }
+    },
     data() {
       return {
-        readOnly: false,
         submitStatus: null,
         connected: true,
-        showSubmitModal: false,
+        showSubmitModal: true,
+        editing: false,
         questions: [],
         form: {
             uuid: '',
             user_email: '',
             useless: false,
             responses: {
-            // explicity list keys that need to be arrays for multiple responses
+            // It seems anything used in v-model must be explicity declared here, instead of dynamically added in resetForm().
             resp_01:[],
             resp_02:[],
             resp_03:[],
@@ -230,7 +246,6 @@ export default {
             this.resetForm();
         },
         resetForm() {
-            //there's got to be an easier way!
             this.form.uuid = '';
             this.form.useless = false;
             for (var i=1;i<=30;i++) {
@@ -240,9 +255,10 @@ export default {
                 }
                 field = 'resp_' + field;
                 this.form.responses[field]=[];
-                this.form.responses[field+'_o']=[];
+                this.form.responses[field+'_o']='';  // "other" field is always text
             }
             this.setDefaults();
+            this.editing = false;
         },
         setDefaults() {
             for (var q of this.questions) {
@@ -257,7 +273,6 @@ export default {
         },
         updateResponse(whichResponse,whatValue) {
             this.form.responses[whichResponse] = whatValue;
-            console.log('['+whichResponse+']:'+whatValue);
             //this.getQuestionFromResponseCode(whichResponse);
         },
         // invalidResponse(question) {
@@ -309,7 +324,7 @@ export default {
             for (var q of this.questions) {
                 questionNumber++;
                 if (q.required) {
-                    if (this.form.responses[q.data].length == 0) {
+                    if (this.form.responses[q.data]==null || this.form.responses[q.data].length == 0) {
                        completed += String(questionNumber) + ",";
                     }
                 }  
@@ -318,7 +333,7 @@ export default {
                         //check if the subchoice would be required if its parent choice is checked 
                         if (c.required && String(this.form.responses[q.data]).includes(c.value)) {
                             //now check if this sub-choice has data
-                            if (this.form.responses[c.data].length == 0) {
+                            if (this.form.responses[c.data]==null || this.form.responses[c.data].length == 0) {
                                 completed += String(questionNumber) + "." + c.value + ",";
                             }
                         }
@@ -329,6 +344,9 @@ export default {
                 completed = 'Questions still required:  #' + completed.substring(0, completed.length - 1);
             }
             return completed;
+        },
+        startEditing() {
+            this.editing = true;
         },
         handleUseless() {
             this.form.useless = true;
@@ -352,6 +370,7 @@ export default {
                 setTimeout(()=> {
                     this.showSubmitModal = false;
                 },1000);
+                this.getNextAudio()
             })
             .catch (err => {
                 //TODO: what if network just went away before hitting submit - is data lost? can it retry?
@@ -364,9 +383,60 @@ export default {
                 },5000);
             });
             this.submitStatus = '';
-            this.$emit('submitted');
         },
+        getNextAudio() {
+
+            this.$emit('next');
+        }
     },
+  computed: {
+    readySubmission() {
+        var submission = this.submission;
+        if (submission) {
+            var responses = submission.responses;
+            for (const [key,value] of Object.entries(submission.responses)) {
+                if (this.checkboxes.includes(key) && responses[key]) {
+                    responses[key] = responses[key].split(";");
+                }
+            }
+            submission.responses = responses;
+        }
+        return submission;
+    },
+    previousSubmission() {
+        return (this.submission != null);
+    },
+    readOnly() {
+          return this.previousSubmission && !this.editing;
+      },
+    hideUseless() {
+        return (this.readOnly && this.form.useless);
+    },
+    // TODO: app only needs as many form.responses as the questions call for 
+    //      However, v-model doesn't seem to work well if they aren't explicitly listed in vue's data() 
+    // responses() {
+    //  First, map this.questions to get an array of data
+    //     this.questions.map(x=>x.data);
+    //  Then, push to the array the other data fields:
+    //      this.questions.filter(a=>a.data_other!='').map(b=>b.data_other)
+    // },
+    checkboxes() {
+        var questionCheckboxes = this.questions.filter(a=>a.type=="checkbox").map(b=>b.data);
+
+        var choiceCheckboxes = this.questions.reduce(
+            function concatChoices(list,a){
+                if(a.choices) 
+                    return list.concat(a.choices); 
+                else 
+                    return list;
+            },[])
+            .filter(b=>b.type && b.type=='checkbox')
+            .map(c=>c.data)
+        
+
+        return questionCheckboxes.concat(choiceCheckboxes);
+    }
+  },
   mounted() {
     this.loadQuestions();
   }
