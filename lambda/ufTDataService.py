@@ -97,24 +97,29 @@ def get_db_connection() -> Connection:
 
 ########################################################################################################################
 
-def get_submitted_forms(connection, program, deployment_number, language, email, timezoneOffset):    
-    command = '''SELECT a.message_uuid, date_trunc('second',submit_time AT TIME ZONE INTERVAL ' '''+timezoneOffset+''' ') 
+def get_submissions_list(connection, program, deployment_number, language, email, timezoneOffset):    
+    command = '''SELECT a.message_uuid, date_trunc('second',submit_time AT TIME ZONE INTERVAL ' '''+timezoneOffset+''' '),is_useless 
                     FROM uf_messages m 
                     JOIN uf_analysis a ON m.message_uuid = a.message_uuid
                     WHERE programid = :program and deploymentnumber = :deployment_number
                     and length_seconds >= :min_sec and language = :language  
                     and submit_time IS NOT NULL and analyst_email = :email
                     ORDER BY submit_time DESC'''
-    sqlforms = connection.run(command,program=program,deployment_number=deployment_number,language=language,email=email,timezoneOffset=timezoneOffset,min_sec=MINIMUM_SECONDS_FILTER)
-    forms = []
-    for f in sqlforms:
-        form = {}
-        form['uuid']=f[0]
-        form['submitted']=f[1]
-        forms.append(form)
-    return forms
+    sqlSubmissions = connection.run(command,program=program,deployment_number=deployment_number,language=language,email=email,timezoneOffset=timezoneOffset,min_sec=MINIMUM_SECONDS_FILTER)
+    submissions = []
+    for s in sqlSubmissions:
+        submission = {}
+        submission['uuid']=s[0]
+        submission['submissionTime']=s[1]
+        submission['feedback']='no' if s[2] else 'yes'
+        submissions.append(submission)
+    return submissions
 
-def get_form(connection,uuid):
+def to_array(text):
+    arr = []
+    return arr
+
+def get_submission(connection,uuid):
     MAX_RESPONSES = 30
     columns = []
     sql = 'SELECT "is_useless", '
@@ -127,14 +132,20 @@ def get_form(connection,uuid):
         sql += '"' + column + '",'
     sql = sql.rstrip(",") + " FROM uf_analysis WHERE message_uuid = '" + uuid + "'"
     sqlResult=connection.run(sql)
-    form = {}
-    form['uuid'] = uuid
-    form['useless'] = sqlResult[0][0]
+    submission = {}
+    submission['uuid'] = uuid
+    submission['useless'] = sqlResult[0][0]
     responses = {}
-    for r in range(1,MAX_RESPONSES + 1):
-        responses[columns[r]] = sqlResult[0][r]
-    form['responses'] = responses
-    return form
+    for r in range(1,MAX_RESPONSES*2):
+        value = sqlResult[0][r]
+        # convert the text into array, even if array size is 1, in case its a checkbox multi-select (when js needs an array)
+        # if value == None or value == '':
+            # value = []
+        # elif r % 2 == 1: #no need to convert the text fields for "_o"/other 
+            # value = value.split(";")
+        responses[columns[r-1]] = value
+    submission['responses'] = responses
+    return submission
 
     
 
@@ -218,7 +229,7 @@ def get_uf_data(connection, user_email, program, deployment_number, language, uu
         if len(sqlResponse) > 0:
             uuid = sqlResponse[0][0]
     else:
-        all_data["audioMetadata"].update(get_form(connection,uuid))
+        all_data["audioMetadata"].update({"submission":get_submission(connection,uuid)})
     # check if there are any uf_messages to process for this program/deployment/language
     if uuid is not None:
         metadata=get_uuid_metadata(connection,uuid)
@@ -253,7 +264,7 @@ def lambda_handler(event, context):
     connection: Connection = get_db_connection()
 
     if uuid == 'all':
-        result = get_submitted_forms(connection, program, deployment, language, email, timezoneOffset)
+        result = get_submissions_list(connection, program, deployment, language, email, timezoneOffset)
     else:
         # Get body of response object
         result = get_uf_data(connection, email,program,deployment,language, uuid)
@@ -281,11 +292,11 @@ if __name__ == '__main__':
                         'language': 'aar'}
                         }
         submit_event2 = {'queryStringParameters': 
-                        {'email':'Abdu.Yimam@care.org',
-                        'program': 'CARE-ETH-BOYS',
+                        {'email':'cliff@amplio.org',
+                        'program': 'CARE-ETH-GIRLS',
                         'deployment': 1,
                         'language': 'aar',
-                        'uuid': '0634ebc7-78ac-5dbe-912d-3f521f63c533'}
+                        'uuid': '9c06d847-1baa-5bbe-829d-c3a24bdc827e'}
                         }
         submit_event3 = {'queryStringParameters': 
                         {'email':'Abdu.Yimam@care.org',
@@ -295,6 +306,14 @@ if __name__ == '__main__':
                         'uuid': 'all',
                         'timezoneOffset': '-420 minutes'}
                         }
-        print(lambda_handler(submit_event1b, None))
+        submit_event3b = {'queryStringParameters': 
+                        {'email':'cliff@amplio.org',
+                        'program': 'CARE-ETH-BOYS',
+                        'deployment': 1,
+                        'language': 'aar',
+                        'uuid': 'all',
+                        'timezoneOffset': '-420 minutes'}
+                        }
+        print(lambda_handler(submit_event3b, None))
         
     test_main()
