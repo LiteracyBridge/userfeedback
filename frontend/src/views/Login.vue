@@ -67,7 +67,6 @@ export default {
         async login() {
             try {
                 const user = await Auth.signIn(this.email, this.password);
-                console.log('user', user);
                 this.isUserSignedIn();
             } catch (error) {
                 console.log(error.message);
@@ -78,10 +77,9 @@ export default {
                 const userObj = await Auth.currentAuthenticatedUser();
                 this.$user_email = userObj['attributes']['email'];
                 Vue.prototype.$token = userObj['signInUserSession']['idToken']['jwtToken']
-                console.log('Token ending: '+this.$token.substr(this.$token.length-5,4));
+                // console.log('Token ending: '+this.$token.substr(this.$token.length-5,4));
                 this.displayLogin = false;
-                this.$router.push({ path: '/app', query: { email: this.$user_email } })
-                console.log('User email: '+this.$user_email);
+                this.$router.push({ path: '/analyze', query: { email: this.$user_email } })
             }
             catch (err) {
                 this.displayLogin = true;
@@ -91,6 +89,7 @@ export default {
         }
     },
     created() {
+        console.log(this.$route);
         this.isUserSignedIn();
     }
 };
