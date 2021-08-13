@@ -98,11 +98,14 @@ def get_db_connection() -> Connection:
 ########################################################################################################################
 
 def get_submissions_list(connection, program, deployment_number, language, email, timezoneOffset):    
-    command = '''SELECT a.message_uuid, date_trunc('second',submit_time AT TIME ZONE INTERVAL ' '''+timezoneOffset+''' '),is_useless 
+    command = '''SELECT a.message_uuid, date_trunc('second',submit_time AT TIME ZONE INTERVAL ' '''+timezoneOffset+''' '),is_useless, 
+                    region,district,communityname,groupname 
                     FROM uf_messages m 
                     JOIN uf_analysis a ON m.message_uuid = a.message_uuid
-                    WHERE programid = :program and deploymentnumber = :deployment_number
-                    and length_seconds >= :min_sec and language = :language  
+                    JOIN recipients r ON m.recipientid = r.recipientid
+                    LEFT JOIN contentmetadata2 c ON m.relation = c.contentid
+                    WHERE m.programid = :program and m.deploymentnumber = :deployment_number
+                    and m.length_seconds >= :min_sec and m.language = :language  
                     and submit_time IS NOT NULL and analyst_email = :email
                     ORDER BY submit_time DESC'''
     sqlSubmissions = connection.run(command,program=program,deployment_number=deployment_number,language=language,email=email,timezoneOffset=timezoneOffset,min_sec=MINIMUM_SECONDS_FILTER)
@@ -112,6 +115,8 @@ def get_submissions_list(connection, program, deployment_number, language, email
         submission['uuid']=s[0]
         submission['submissionTime']=s[1]
         submission['feedback']='no' if s[2] else 'yes'
+        submission['location']=s[5] + ', ' + s[4] + ', ' + s[3]
+        submission['group']=s[6]
         submissions.append(submission)
     return submissions
 
