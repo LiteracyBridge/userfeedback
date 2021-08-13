@@ -113,7 +113,7 @@ export default {
       }    
     },
     updateUrl() {  
-      const request = "https://ckz0f72fjf.execute-api.us-west-2.amazonaws.com/default/ufTDataService?"
+      const request = "https://ckz0f72fjf.execute-api.us-west-2.amazonaws.com/default/ufDataService?"
           + "email=" + this.$route.query.email
           + "&program=" + this.context.selectedProgramCode
           + "&deployment=" + this.context.selectedDeployment

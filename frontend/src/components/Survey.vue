@@ -369,7 +369,7 @@ export default {
             this.form.uuid = this.uuid;
 
             //Submit values here:
-            const action = "https://ckz0f72fjf.execute-api.us-west-2.amazonaws.com/default/ufTProcess";      
+            const action = "https://ckz0f72fjf.execute-api.us-west-2.amazonaws.com/default/ufProcess";      
             Vue.axios.post(action,this.form, {headers: {'Authorization': `${this.$token}`}})
             .then(response=>{
                 this.connected=true;
