@@ -2,8 +2,11 @@
   <div>
     <div class="navbar grid grid-cols-10 justify-items-start content-end">
       <span class="text-3xl col-start-2 col-span-1 row-start-1 row-span-1 pb-0">AMPLIO</span>
-      <router-link class="pt-4 text-2xl col-span-1 row-start-1 row-span-1" :class="'col-start-'+String(3+count)" v-for="(route,count) in navRoutes" :key="route.path" :to="route.path+'?email='+email+'&program='+programCode+'&language='+languageCode+'&deployment='+deployment">
-        {{route.name}}
+      <router-link class="pt-4 text-2xl col-start-3 col-span-1 row-start-1 row-span-1" :to="'/analyze?email='+email+'&program='+programCode+'&language='+languageCode+'&deployment='+deployment">
+        Analyze
+      </router-link>
+      <router-link class="pt-4 text-2xl col-start-4 col-span-1 row-start-1 row-span-1" :to="'/review?email='+email+'&program='+programCode+'&language='+languageCode+'&deployment='+deployment">
+        Review
       </router-link>
       <select v-model="programCode" @change="$emit('progChanged',programCode)" class="col-start-7 col-span-2 justify-self-end my-4 outline-grey text-black text-lg w-64">
         <option v-for="program in programs" :value="program.code" :key="program.code">

@@ -193,7 +193,7 @@ export default {
     },
     showNoAudios() {
       let message="NONE";
-      if (this.$route.path=='/responses' && ((this.uuid == '') || (this.uuid==null))) {
+      if (this.$route.path=='/review' && ((this.uuid == '') || (this.uuid==null))) {
         // Must be in Responses.vue, which is telling us that we are at the end of the list.
         message = "Finished!  There are no more responses to review.";
       } else {
@@ -224,7 +224,7 @@ export default {
   },
   mounted() {
     console.log("mounted-AnalyzeComp");
-    if(this.$route.path=='/analyze' || this.$route.path=='/responses') {
+    if(this.$route.path=='/analyze' || this.$route.path=='/review') {
       this.uuid = this.nextUUID;
       this.updateUrl();
     }

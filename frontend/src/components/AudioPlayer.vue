@@ -204,7 +204,7 @@ export default {
     },
     mounted() {        
         a = this.$refs.audio;
-        if(this.$route.path=='/analyze' || this.$route.path=='/responses') {
+        if(this.$route.path=='/analyze' || this.$route.path=='/review') {
             this.fullyLoaded = false;
             this.$refs.audio.load();
             this.setAudioFocus();
