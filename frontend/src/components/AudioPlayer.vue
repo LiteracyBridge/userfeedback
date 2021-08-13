@@ -1,16 +1,19 @@
 <template>
     <div>
-        <span style="float:left">Audio Player</span>
+        <span style="float:left;font-weight:bold">Audio Player</span>
         <table style="border: 2px solid #ddd" width="100%">
             <span style="float:left"> Filename: {{getUUID()}}</span>
             <tr><td style="padding: 10px">
                 <div class="audioMetadata">
+                    <div v-if="audioMetadata.title">
+                        <span style="font-weight:bold">Last message:</span> {{audioMetadata.title}} 
+                    </div>
+                    <div v-else><br/></div>
                     <div v-if="audioMetadata.url!=''">
                         <!-- for some reason this v-if has to be in this second-level div; otherwise, the audio key controls do not work.-->
                         <span style="font-weight:bold">Location:</span> {{audioMetadata.community}}, {{audioMetadata.district}}, {{audioMetadata.region}} 
                         <span class="ml-3" style="font-weight:bold"> Model:</span> {{audioMetadata.listening_model}} 
                         <span class="ml-3" style="font-weight:bold"> Group:</span> {{audioMetadata.group}} 
-                        <span v-if="audioMetadata.title" style="font-weight:bold"><br/>Last message:</span> {{audioMetadata.title}} 
                     </div>
                 </div>
                 <div tabindex="0" class="flex justify-center noFocusOutline" ref="audioDiv" @keypress.space.prevent @keydown="checkKey">
@@ -26,24 +29,16 @@
                     Loading...
                 </div>
             </td></tr>
-        <div v-if="audioMetadata.submission" class="float-right mt-2 mb-5 mr-5">
-            <button class="button" @click="$emit('next')">Skip</button>
-        </div>
-
+            <span v-if="audioMetadata.submission" class="relative right-0 float-right mb-2 mr-5">
+                <button class="button" @click="$emit('next')">Skip</button>
+            </span>
         </table>
     </div>    
 </template>
 <script>
-import VButton from '@/components/VButton';
-import VTooltip from '@/components/VTooltip';
-
 var a;
 export default {
     name:"AudioPlayer",
-    components: {
-        VButton,
-        VTooltip
-    },
     props: ["audioMetadata"],
     data() {
       return {

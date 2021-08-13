@@ -1,107 +1,109 @@
 <template>
   <div ref="top">
     <div>
-    <span style="float:left">Feedback Form</span>
+    <span style="float:left; font-weight:bold">Feedback Form</span>
     </div>
-    <div v-if="hideUseless" class="box-content border-2 border-gray h-32 grid content-center text-red-500">
-        This audio recording was marked as "Not Feedback".  
-        Click "Edit" to update this information or skip to the next form.
-    </div>
-    <table v-else width="100%" style="text-align:left;border: 2px solid #ddd;padding: 5px">
+    <table width="100%" style="text-align:left;border: 2px solid #ddd;padding: 5px">
         <div v-if="previousSubmission" class="float-right mt-2 mb-5 mr-5">
-            <button class="bg-yellow-600 button float-right" @click="startEditing" :disabled="editing">Edit</button>
+            <VButton variant="button bg-yellow-600 float-right" label="Edit" @click="startEditing" :disabled="editing"/>
         </div>
-        <div class="float-left mt-2 mb-5 ml-5">
-            <VButton label='Mark as "Not Feedback"' variant="button_warning" :disabled="readOnly" @click="handleUseless"/>
+        <div v-if="hideUseless" class="box-content h-32 grid content-center text-red-500">
+            This audio recording was marked as "Not Feedback".  
+            Click "Edit" to update this information or skip to the next form.
         </div>
+        <div v-else>
+            <div class="mt-2 mb-5 ml-5">
+                <VButton label='Mark as "Not Feedback"' variant="button_warning" :disabled="readOnly" @click="handleUseless"/>
+            </div>
 
 
-        <tr v-for="(question,count) in questions" :key="question.question_id">
-            <td class="pad">
-                <p><span class="question">{{count+1}}. {{question.question_label}}</span>
-                    <!-- <span v-if="question.required" style="color: red">*</span>    -->
-                    <span v-if="question.required"> (Required)</span>   
-                    <span v-else> (Optional)</span>   
-                </p>
-                <div v-if="question.type=='textarea'">
-                <textarea width="100%" rows="5" class="outline-grey" 
-                :disabled="readOnly" :name="question.name" v-model="form.responses[question.data]"/>
-                </div>
-                <div v-if="question.type=='number'">
-                    <!-- <p v-if="invalidResponse(question)" class="col-span-2 md:col-span-4 text-center text-red-500">
-                        <font-awesome-icon icon="exclamation-circle" class="w-6 h-6" />
-                        Invalid Number: {{question.constraint}}
-                    </p> -->
-                    <v-input :name="question.name" type="number" mx="mx-0" :value="Number(form.responses[question.data])"
-                        :disabled="readOnly" @input="updateResponse(question.data,$event.target.value)"/>
-                </div>
-                <div v-if="question.type=='select'">
-                <select :disabled="readOnly" :name="question.name" mx="mx-0" v-model="form.responses[question.data]" class="outline-grey text-black text-base">
-                    <option v-for="option in question.choices" :key="option.choice_id" :value="option.value">
-                        {{option.choice_label}}
-                    </option>
-                </select>
-                </div>
-                <div v-else v-for="choice in question.choices" :key="choice.choice_id">
-                    <input class="mr-3" @change="clearOtherAndSubChoices(choice,question)" :type="question.type" :name="question.name" 
-                    :disabled="readOnly" :id="choice.choice_id" :ref="choice.choice_id" :value="choice.value" v-model="form.responses[question.data]" />
-                    <label :for="choice.choice_id">{{choice.choice_label}}</label>
-                    <br />
-                    <div  v-if="choice.choices && String(form.responses[question.data]).includes(choice.value)">
-                    <label>{{choice.question_label}}</label><span v-if="choice.required" style="color: red">*</span>   
-                    <div v-for="subchoice in choice.choices" :key="subchoice.choice_id" style="text-indent: 20px">
-                        <input class="mr-3" :type="choice.type" :name="choice.name" :id="choice.question_id" :value="subchoice.value" 
-                        :disabled="readOnly" v-model="form.responses[choice.data]"/>
-                        <label :for="subchoice.choice_id">{{subchoice.choice_label}}</label>
+            <tr v-for="(question,count) in questions" :key="question.question_id">
+                <td class="pad">
+                    <p><span class="question">{{count+1}}. {{question.question_label}}</span>
+                        <!-- <span v-if="question.required" style="color: red">*</span>    -->
+                        <span v-if="question.required"> (Required)</span>   
+                        <span v-else> (Optional)</span>   
+                    </p>
+                    <div v-if="question.type=='textarea'">
+                    <textarea width="100%" rows="5" class="outline-grey" 
+                    :disabled="readOnly" :name="question.name" v-model="form.responses[question.data]"/>
                     </div>
-                    <div v-if="choice.data_other" style="text-indent: 20px">
-                        <input :disabled="readOnly" class="mr-3" @change="clearOtherAndSubChoices(null,choice)" :type="choice.type" :name="choice.name" :id="choice.question_id+'-other'" value="other" v-model="form.responses[choice.data]"/>
-                        <label :for="choice.choice_id+'-other'">Other</label>
-                        <div v-if="String(form.responses[choice.data]).includes('other')">
-                            <textarea :disabled="readOnly" rows="2" cols="45" class="ml-9 w-auto outline-grey" :name="choice.name+'-othertxt'" :id="choice.choice_id+'-othertxt'" v-model="form.responses[choice.data_other]"/>
+                    <div v-if="question.type=='number'">
+                        <!-- <p v-if="invalidResponse(question)" class="col-span-2 md:col-span-4 text-center text-red-500">
+                            <font-awesome-icon icon="exclamation-circle" class="w-6 h-6" />
+                            Invalid Number: {{question.constraint}}
+                        </p> -->
+                        <v-input :name="question.name" type="number" mx="mx-0" :value="Number(form.responses[question.data])"
+                            :disabled="readOnly" @input="updateResponse(question.data,$event.target.value)"/>
+                    </div>
+                    <div v-if="question.type=='select'">
+                    <select :disabled="readOnly" :name="question.name" mx="mx-0" v-model="form.responses[question.data]" class="outline-grey text-black text-base">
+                        <option v-for="option in question.choices" :key="option.choice_id" :value="option.value">
+                            {{option.choice_label}}
+                        </option>
+                    </select>
+                    </div>
+                    <div v-else v-for="choice in question.choices" :key="choice.choice_id">
+                        <input class="mr-3" @change="clearOtherAndSubChoices(choice,question)" :type="question.type" :name="question.name" 
+                        :disabled="readOnly" :id="choice.choice_id" :ref="choice.choice_id" :value="choice.value" v-model="form.responses[question.data]" />
+                        <label :for="choice.choice_id">{{choice.choice_label}}</label>
+                        <br />
+                        <div  v-if="choice.choices && String(form.responses[question.data]).includes(choice.value)">
+                        <label>{{choice.question_label}}</label><span v-if="choice.required" style="color: red">*</span>   
+                        <div v-for="subchoice in choice.choices" :key="subchoice.choice_id" style="text-indent: 20px">
+                            <input class="mr-3" :type="choice.type" :name="choice.name" :id="choice.question_id" :value="subchoice.value" 
+                            :disabled="readOnly" v-model="form.responses[choice.data]"/>
+                            <label :for="subchoice.choice_id">{{subchoice.choice_label}}</label>
+                        </div>
+                        <div v-if="choice.data_other" style="text-indent: 20px">
+                            <input :disabled="readOnly" class="mr-3" @change="clearOtherAndSubChoices(null,choice)" :type="choice.type" :name="choice.name" :id="choice.question_id+'-other'" value="other" v-model="form.responses[choice.data]"/>
+                            <label :for="choice.choice_id+'-other'">Other</label>
+                            <div v-if="String(form.responses[choice.data]).includes('other')">
+                                <textarea :disabled="readOnly" rows="2" cols="45" class="ml-9 w-auto outline-grey" :name="choice.name+'-othertxt'" :id="choice.choice_id+'-othertxt'" v-model="form.responses[choice.data_other]"/>
+                            </div>
+                        </div>
+
                         </div>
                     </div>
-
+                    <div v-if="question.data_other">
+                        <input :disabled="readOnly" class="mr-3" @change="clearOtherAndSubChoices(null,question)" :type="question.type" 
+                        :name="question.name" :id="question.question_id+'-other'" value="other" v-model="form.responses[question.data]" />
+                        <label :for="question.question_id+'-other'">Other</label>
+                        <span >
+                            <div v-if="String(form.responses[question.data]).includes('other')">
+                            <textarea :disabled="readOnly" rows="2" cols="45" class="ml-9 w-auto outline-grey" :name="question.name+'-othertxt'" :id="question.choice_id+'-othertxt'" v-model="form.responses[question.data_other]"/>
+                            </div>
+                        </span>
                     </div>
-                </div>
-                <div v-if="question.data_other">
-                    <input :disabled="readOnly" class="mr-3" @change="clearOtherAndSubChoices(null,question)" :type="question.type" 
-                    :name="question.name" :id="question.question_id+'-other'" value="other" v-model="form.responses[question.data]" />
-                    <label :for="question.question_id+'-other'">Other</label>
-                    <span >
-                        <div v-if="String(form.responses[question.data]).includes('other')">
-                        <textarea :disabled="readOnly" rows="2" cols="45" class="ml-9 w-auto outline-grey" :name="question.name+'-othertxt'" :id="question.choice_id+'-othertxt'" v-model="form.responses[question.data_other]"/>
-                        </div>
-                    </span>
+                </td>
+            </tr>
+            <tr>
+            <td style="text-align: right">
+                <div class="float-right">
+                <v-tooltip
+                    v-if="this.checkCompleted()!=''"
+                    :text="checkCompleted()"
+                    position="right"
+                    class="my-2 ml-2"
+                    :width="200"
+                >
+                    <font-awesome-icon
+                    class="text-orange-600"
+                    icon="exclamation-circle"
+                    />
+                </v-tooltip>
+                <VButton
+                    label="SUBMIT"
+                    variant="success"
+                    :disabled="readOnly || this.checkCompleted()!=''"
+                    :iconL="submitStatus === 'submitting' ? 'spinner' : ''"
+                    :iconLPulse="submitStatus === 'submitting'"
+                    @click="handleUseful"
+                />
                 </div>
             </td>
-        </tr>
-        <tr>
-        <td style="text-align: right">
-            <div class="float-right">
-            <v-tooltip
-                v-if="this.checkCompleted()!=''"
-                :text="checkCompleted()"
-                position="right"
-                class="my-2 ml-2"
-                :width="200"
-            >
-                <font-awesome-icon
-                class="text-orange-600"
-                icon="exclamation-circle"
-                />
-            </v-tooltip>
-            <VButton
-                label="SUBMIT"
-                variant="success"
-                :disabled="readOnly || this.checkCompleted()!=''"
-                :iconL="submitStatus === 'submitting' ? 'spinner' : ''"
-                :iconLPulse="submitStatus === 'submitting'"
-                @click="handleSubmit"
-            />
-            </div>
-        </td>
-        </tr>
+            </tr>
+        </div>
     </table>
     <div id="modalsubmit">
     <transition name="fade" appear>
@@ -136,17 +138,19 @@ export default {
     },
     props: ["context","uuid","submission"],
     watch: {
-        submission(newSubmission, oldSubmission) {
-            this.submission = newSubmission;
-            this.form = this.readySubmission;
-            console.log("readied submission");
+        submission: function(newSubmission, oldSubmission) {
+            console.log("WATCH");
+            this.editing = false;
+            if (this.readySubmission) { 
+                this.form = this.readySubmission;
+            }
         }
     },
     data() {
       return {
         submitStatus: null,
         connected: true,
-        showSubmitModal: true,
+        showSubmitModal: false,
         editing: false,
         questions: [],
         form: {
@@ -346,10 +350,16 @@ export default {
             return completed;
         },
         startEditing() {
+            console.log("startEditing");
             this.editing = true;
+            this.form = this.readySubmission;
         },
         handleUseless() {
             this.form.useless = true;
+            this.handleSubmit();
+        },
+        handleUseful() {
+            this.form.useless = false;
             this.handleSubmit();
         },
         handleSubmit() {
@@ -395,8 +405,17 @@ export default {
         if (submission) {
             var responses = submission.responses;
             for (const [key,value] of Object.entries(submission.responses)) {
-                if (this.checkboxes.includes(key) && responses[key]) {
-                    responses[key] = responses[key].split(";");
+                if (this.checkboxes.includes(key)) {
+                    if (responses[key]) {
+                        try {
+                        responses[key] = responses[key].split(";");
+                        } catch (e) {
+                            console.log("ERR:"+(typeof responses[key]));
+                        }
+                    }
+                    else { 
+                        responses[key] = []; // null values need to be empty arrays for checkboxes to work
+                    }
                 }
             }
             submission.responses = responses;
@@ -439,7 +458,7 @@ export default {
   },
   mounted() {
     this.loadQuestions();
-  }
+  },
 }
 </script>
 

@@ -1,44 +1,38 @@
 <template>
-<div @keydown.esc="escape">
-  <nav-bar :programs="programs" :selectedProgramCode="context.selectedProgramCode" :email="this.$route.query.email" @changed="updatedProgram"/>
-  <div v-if="!connected" style="color:red; font-size:1.5em; font-weight:bolder; text-align:center; padding: 0px">No Connection!</div>    
-  <div class="flex">
-      <div v-if="nextUUID!=null" @click="$emit('all')" style="color:#0000ee;font-weight:bold" class="cursor-pointer text-2xl underline">View all responses</div>    
-      <div>
-        <span>
-          <depl-lang-select :deployments="deployments" :languages="languages" 
-            :selectedDeployment="context.selectedDeployment" :selectedLanguageCode="context.selectedLanguageCode" 
-            @langChanged="updatedLanguage" @deplChanged="updatedDeployment"
-          />
-        </span>
-      </div>
+<div class="grid grid-cols-10" @keydown.esc="escape">
+  <div class="col-span-full row-start-1 row-end-2">
+    <nav-bar :email="this.$route.query.email" :programs="programs" :deployments="deployments" :languages="languages" :allResponsesLink="nextUUID != null"
+              :selectedProgramCode="context.selectedProgramCode" :selectedDeployment="context.selectedDeployment" :selectedLanguageCode="context.selectedLanguageCode"
+              @progChanged="updatedProgram" @langChanged="updatedLanguage" @deplChanged="updatedDeployment"  @all="$emit('all')"/>
   </div>
-  <div style="padding: 0px">
-          <stats :progress="progress" />
-  </div>
-  <div class="absolute right-0">
-    <instructions/>
-  </div>
-  <hr style="height:2px;border-width:0;background-color:gray">
-  <div v-if="audioMetadata.url!=''">
-      <audio-player :key="audioKey" @srcError="updateUrl" @network="updateConnected" @next="getNext" ref="audio" :audioMetadata="audioMetadata" />
-  </div>
-  <div v-if="audioMetadata.url!=''" >
-      <survey :context="context" :uuid="audioMetadata.uuid" :submission="audioMetadata.submission" @next="getNext" @checkboxes="setCheckboxes" @network="updateConnected"/>
-  </div>
-  <div v-if="audioMetadata.url==''">
-    <span style="color:red; text-align:center" v-html="showNoAudios"/>
-  </div>
-  <div>
+  <div class="col-start-3 col-span-6">
+    <div v-if="!connected" style="color:red; font-size:1.5em; font-weight:bolder; text-align:center; padding: 0px">No Connection!</div>    
+    <div class="float-right">
+      <instructions/>
+    </div>
+    <div style="padding: 0px">
+            <stats :progress="progress" />
+    </div>
+    <div v-if="audioMetadata.url!=''">
+        <audio-player :key="audioKey" @srcError="updateUrl" @network="updateConnected" @next="getNext" ref="audio" :audioMetadata="audioMetadata" />
+    </div>
     <br/>
-    <p>Need help? Contact us at support@amplio.org</p>
+    <div v-if="audioMetadata.url!=''" >
+        <survey :context="context" :uuid="uuid" :submission="audioMetadata.submission" @next="getNext" @checkboxes="setCheckboxes" @network="updateConnected"/>
+    </div>
+    <div v-if="audioMetadata.url==''">
+      <span style="color:red; text-align:center" v-html="showNoAudios"/>
+    </div>
+    <div>
+      <br/>
+      <p>Need help? Contact us at support@amplio.org</p>
+    </div>
   </div>
  </div>
 </template>
 
 <script>
 import NavBar from "../components/NavBar.vue";
-import DeplLangSelect from "../components/DeplLangSelect.vue"
 import Instructions from "../components/Instructions.vue"
 import Stats from "../components/Stats.vue";
 import AudioPlayer from "../components/AudioPlayer.vue";
@@ -59,14 +53,15 @@ export default {
   watch: {
     nextUUID (newUUID,oldUUID) {
       this.uuid = newUUID;
-      if (newUUID != null) {
+      if (newUUID != '') {
         this.updateUrl();
+      } else {
+        this.audioMetadata.url = '';
       }
     }
   },
   components: {
     NavBar,
-    DeplLangSelect,
     Instructions,
     Stats,
     AudioPlayer,
@@ -123,7 +118,7 @@ export default {
           + "&program=" + this.context.selectedProgramCode
           + "&deployment=" + this.context.selectedDeployment
           + "&language=" + this.context.selectedLanguageCode
-          + ((this.uuid)?"&uuid="+this.uuid+"&array="+JSON.stringify(this.checkboxes):"")
+          + ((this.uuid)?"&uuid="+this.uuid:"")
       // Vue.axios.interceptors.request.use(request => {console.log('Starting Request', JSON.stringify(request, null, 2)) return request });
       console.log("updateUrl:"+request);
       Vue.axios.get(request,{headers: {'Authorization': `${this.$token}`}})
@@ -141,9 +136,13 @@ export default {
                 this.previousSubmission = true;
               }
           }
+          if (this.$refs.audio) {
+            this.$refs.audio.setAudioFocus();
+          }
           console.log("new URL:"+this.audioMetadata.url);
       }).catch(err => {
           console.log("caught:"+err)
+          this.uuid="";
           this.connected = false;
       })
     },
@@ -162,14 +161,20 @@ export default {
       this.context.selectedProgramCode = programCode;
       this.context.selectedLanguageCode = this.languages[0].code;
       this.context.selectedDeployment = this.deployments[0];
+      this.uuid='';
+      this.$router.push({ path: this.$route.path+'?email='+this.$route.query.email+'&program='+this.context.selectedProgramCode+'&language='+this.context.selectedLanguageCode+'&deployment='+this.context.selectedDeployment});
       this.updateUrl();
     },
     updatedLanguage(languageCode) {
       this.context.selectedLanguageCode = languageCode;
+      this.$router.push({ path: this.$route.path+'?email='+this.$route.query.email+'&program='+this.context.selectedProgramCode+'&language='+this.context.selectedLanguageCode+'&deployment='+this.context.selectedDeployment});
+      this.uuid='';
       this.updateUrl();
     },
     updatedDeployment(deployment) {
       this.context.selectedDeployment = deployment;
+      this.$router.push({ path: this.$route.path+'?email='+this.$route.query.email+'&program='+this.context.selectedProgramCode+'&language='+this.context.selectedLanguageCode+'&deployment='+this.context.selectedDeployment});
+      this.uuid='';
       this.updateUrl();
     }
   },
@@ -188,7 +193,7 @@ export default {
     },
     showNoAudios() {
       let message="NONE";
-      if (this.$route.path=='/responses' && this.uuid == null) {
+      if (this.$route.path=='/responses' && ((this.uuid == '') || (this.uuid==null))) {
         // Must be in Responses.vue, which is telling us that we are at the end of the list.
         message = "Finished!  There are no more responses to review.";
       } else {
@@ -218,12 +223,21 @@ export default {
     }
   },
   mounted() {
+    console.log("mounted-AnalyzeComp");
     if(this.$route.path=='/analyze' || this.$route.path=='/responses') {
       this.uuid = this.nextUUID;
       this.updateUrl();
     }
-  }
+  },
+   created() {
+    if(this.$route.query.program) {
+      this.context.selectedProgramCode=this.$route.query.program;
+      this.context.selectedLanguageCode=this.$route.query.language;
+      this.context.selectedDeployment=this.$route.query.deployment;
+    }
+  },
 };
+
 </script>
 
 <style>
