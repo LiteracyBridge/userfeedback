@@ -13,8 +13,8 @@
                 name="emailAddress"
                 label="Email address"
                 class="my-6"
-                :value="email"
-                @input="email = $event.target.value"
+                :value="emailInput"
+                @input="emailInput = $event.target.value"
                 />
                 <v-input
                 type="password"
@@ -29,9 +29,16 @@
                     type="submit"
                     label="Sign In"
                     variant="success full"
-                    @click="login"
+                    
                 />
         </form>
+        <div v-if="loginError">
+            <span style="color:red;font-weight:bolder">Invalid email/password</span>
+        </div>
+        <div v-if="noPrograms">
+            <span style="color:red;font-weight:bolder">Sorry, but you do not currently have access to a program that is configured for User Feedback Processing.</span>
+        </div>
+
       </div>
       <!-- <p class="text-sm mt-4">
         No account? <router-link class="text-green font-bold" to="/register">Sign Up</router-link>
@@ -48,6 +55,7 @@ import { Auth } from 'aws-amplify';
 import Vue from 'vue';
 import VInput from '@/components/VInput';
 import VButton from '@/components/VButton';
+import {actions, getters,mutations} from '../globalStore.js'
 
 
 export default {
@@ -58,38 +66,57 @@ export default {
     name: 'Login',
     data() {
         return {
-            email: '',
+            emailInput: '',
             password: '',
-            displayLogin: false
+            displayLogin: false,
+            loginError: false,
+            noPrograms: false
         };
     },
     methods: {
+        ...mutations,
+        ...actions,
         async login() {
             try {
-                const user = await Auth.signIn(this.email, this.password);
+                console.log("signing in")
+                const user = await Auth.signIn(this.emailInput, this.password);
+                this.loginError = false;
                 this.isUserSignedIn();
             } catch (error) {
+                this.loginError = true;
+                console.log("ERROR in login():");
                 console.log(error.message);
             }
         },
         async isUserSignedIn() {
             try {
                 const userObj = await Auth.currentAuthenticatedUser();
-                this.$user_email = userObj['attributes']['email'];
+                this.setLoginEmail(userObj['attributes']['email']);
                 Vue.prototype.$token = userObj['signInUserSession']['idToken']['jwtToken']
-                // console.log('Token ending: '+this.$token.substr(this.$token.length-5,4));
                 this.displayLogin = false;
-                this.$router.push({ path: '/analyze', query: { email: this.$user_email } })
+                var atLeastOneProgram = await this.getProgramsAndContext();
+                if (atLeastOneProgram) {
+                    this.$router.push({ path: '/analyze'})
+                } else {
+                    this.displayLogin = true;
+                    this.noPrograms = true;
+                    try {
+                        await Auth.signOut();
+                    } catch (error) {
+                        console.log(error.message);
+                    }
+                    setTimeout(()=> {
+                        this.noPrograms = false;
+                    },5000);            
+                }
             }
             catch (err) {
                 this.displayLogin = true;
-                // alert(err);
                 console.log(err);
             }
         }
     },
     created() {
-        console.log(this.$route);
         this.isUserSignedIn();
     }
 };
