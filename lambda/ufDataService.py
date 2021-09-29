@@ -124,7 +124,7 @@ def get_program_list(connection,email):
                     JOIN projects p ON p.projectcode=l.projectcode
                     LEFT JOIN uf_messages m ON m.programid = p.projectcode and l.languagecode=m.language
 					LEFT JOIN uf_questions q ON q.programid = p.projectcode and l.languagecode=q.language	
-					WHERE m.deploymentnumber is not null OR q.deploymentnumber is not null
+					WHERE (m.deploymentnumber is not null OR q.deploymentnumber is not null)
                     AND p.active AND p.projectcode IN ('''
     command += programsAuthorized 
     command += ") ORDER BY p.projectcode,COALESCE(m.deploymentnumber, q.deploymentnumber),l.language"
@@ -425,6 +425,10 @@ if __name__ == '__main__':
                         {'email':'CLIFF@cliffschmidt.com',
                         'program': 'all'}
                         }
-        print(lambda_handler(submit_event4b, None))
+        submit_event4e = {'queryStringParameters': 
+                        {'email':'amplio.demo@gmail.com',
+                        'program': 'all'}
+                        }
+        print(lambda_handler(submit_event4e, None))
         
     test_main()
