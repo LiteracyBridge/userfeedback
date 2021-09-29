@@ -125,6 +125,7 @@ import VueAxios from 'vue-axios'
 import VTooltip from '@/components/VTooltip'
 import VInput from '@/components/VInput'
 import VButton from '@/components/VButton';
+import {getters} from '@/globalStore.js'
 
 Vue.use(VueAxios,axios)
 
@@ -136,7 +137,7 @@ export default {
         VTooltip,
         VInput
     },
-    props: ["context","uuid","submission"],
+    props: ["uuid","submission"],
     watch: {
         submission: function(newSubmission, oldSubmission) {
             console.log("WATCH");
@@ -225,7 +226,7 @@ export default {
     },
     methods: {
         loadQuestions() {
-            const request = "https://ckz0f72fjf.execute-api.us-west-2.amazonaws.com/default/ufTQuestions?"
+            const request = "https://ckz0f72fjf.execute-api.us-west-2.amazonaws.com/default/ufQuestions?"
                 + "&program=" + this.context.selectedProgramCode
                 + "&deployment=" + this.context.selectedDeployment
                 + "&language=" + this.context.selectedLanguageCode;
@@ -233,6 +234,7 @@ export default {
             //     console.log('Starting Request', JSON.stringify(request, null, 2))
             //     return request
             // });
+            console.log("QUESTIONS:"+request);
             Vue.axios.get(request,{headers: {'Authorization': `${this.$token}`}})
             .then(response=>{
                 this.questions=response.data;
@@ -365,7 +367,7 @@ export default {
         handleSubmit() {
             this.submitStatus = 'submitting';
             //First, add UUID and email to the form data before we submit it.
-            this.form.user_email = this.$route.query.email;
+            this.form.user_email = this.email;
             this.form.uuid = this.uuid;
 
             //Submit values here:
@@ -400,6 +402,7 @@ export default {
         }
     },
   computed: {
+    ...getters,
     readySubmission() {
         var submission = this.submission;
         if (submission) {
