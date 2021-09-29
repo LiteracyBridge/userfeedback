@@ -2,9 +2,7 @@
 <div>
   <div v-if="allResponses" class="grid grid-cols-10">
     <div class="row-start-1 row-end-2 col-span-full" >
-         <nav-bar :email="this.$route.query.email" :programs="programs" :deployments="deployments" :languages="languages" :allResponsesLink="!allResponses"  
-                :selectedProgramCode="context.selectedProgramCode" :selectedDeployment="context.selectedDeployment" :selectedLanguageCode="context.selectedLanguageCode"
-                @progChanged="updatedProgram" @langChanged="updatedLanguage" @deplChanged="updatedDeployment"/>
+         <nav-bar @contextChanged="contextChanged" :allResponsesLink="!allResponses"/>
     </div>
     <div class="row-start-2 col-start-3 col-span-6 pl-8 justify-self-start text-3xl text-gray-600" style="font-weight:bold;">All Responses</div>
     <div class="row-start-3 col-start-3 col-span-6 justify-self-stretch">
@@ -47,6 +45,7 @@ import VTooltip from '@/components/VTooltip'
 import axios from 'axios'
 import Vue from 'vue'
 import VueAxios from 'vue-axios'
+import {getters,mutations} from '../globalStore.js'
 
 
 Vue.use(VueAxios,axios)
@@ -94,33 +93,11 @@ export default {
       sortTable: {
             by: 'submissionTime',
             descending: true
-      },
-      submissionsToShow: 20,
-      programs: [{
-        code:"CARE-ETH-GIRLS",
-        name:"CARE Ethiopia Girls",
-        languages:[{
-          code:"aar",
-          name:"Afar af"
-        }],
-        deployments:[1]
-      },{
-        code:"CARE-ETH-BOYS",
-        name:"CARE Ethiopia Boys",
-        languages:[{
-          code:"aar",
-          name:"Afar af"
-        }],
-        deployments:[1]
-      }],
-      context: {
-        selectedProgramCode:"CARE-ETH-GIRLS",
-        selectedDeployment:1,
-        selectedLanguageCode:"aar"
       }
     }
   },
   methods: {
+    ...mutations,
     setAllResponses() {
         this.allResponses = true;
         this.getSubmissionsList();
@@ -154,26 +131,15 @@ export default {
       )
 
     },
+    contextChanged() {
+      this.getSubmissionsList();
+    },
     updatedProgram(programCode) {
-          this.context.selectedProgramCode = programCode;
-          this.context.selectedLanguageCode = this.languages[0].code;
-          this.context.selectedDeployment = this.deployments[0];
-          this.$router.push({ path: this.$route.path+'?email='+this.$route.query.email+'&program='+this.context.selectedProgramCode+'&language='+this.context.selectedLanguageCode+'&deployment='+this.context.selectedDeployment});
-          this.getSubmissionsList();
-    },
-    updatedLanguage(languageCode) {
-      this.context.selectedLanguageCode = languageCode;
-      this.$router.push({ path: this.$route.path+'?email='+this.$route.query.email+'&program='+this.context.selectedProgramCode+'&language='+this.context.selectedLanguageCode+'&deployment='+this.context.selectedDeployment});
-      this.getSubmissionsList();
-    },
-    updatedDeployment(deployment) {
-      this.context.selectedDeployment = deployment;
-      this.$router.push({ path: this.$route.path+'?email='+this.$route.query.email+'&program='+this.context.selectedProgramCode+'&language='+this.context.selectedLanguageCode+'&deployment='+this.context.selectedDeployment});
-      this.getSubmissionsList();
+          this.$router.push({path: this.$route.path});
     },
     getSubmissionsList() {    
       const request = "https://ckz0f72fjf.execute-api.us-west-2.amazonaws.com/default/ufDataService?"
-          + "email=" + this.$route.query.email
+          + "email=" + this.email
           + "&program=" + this.context.selectedProgramCode
           + "&deployment=" + this.context.selectedDeployment
           + "&language=" + this.context.selectedLanguageCode
@@ -195,6 +161,7 @@ export default {
     }
   },
    computed: {
+    ...getters,
     liveSubmissionsList() {
         return this.submissionsList;
     },

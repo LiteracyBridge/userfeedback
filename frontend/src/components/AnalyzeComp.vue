@@ -1,9 +1,7 @@
 <template>
 <div class="grid grid-cols-10" @keydown.esc="escape">
   <div class="col-span-full row-start-1 row-end-2">
-    <nav-bar :email="this.$route.query.email" :programs="programs" :deployments="deployments" :languages="languages" :allResponsesLink="nextUUID != null"
-              :selectedProgramCode="context.selectedProgramCode" :selectedDeployment="context.selectedDeployment" :selectedLanguageCode="context.selectedLanguageCode"
-              @progChanged="updatedProgram" @langChanged="updatedLanguage" @deplChanged="updatedDeployment"  @all="$emit('all')"/>
+    <nav-bar :key="navKey" :allResponsesLink="nextUUID != null" @contextChanged="contextChanged" @all="$emit('all')"/>
   </div>
   <div class="col-start-3 col-span-6">
     <div v-if="!connected" style="color:red; font-size:1.5em; font-weight:bolder; text-align:center; padding: 0px">No Connection!</div>    
@@ -18,7 +16,7 @@
     </div>
     <br/>
     <div v-if="audioMetadata.url!=''" >
-        <survey :context="context" :uuid="uuid" :submission="audioMetadata.submission" @next="getNext" @checkboxes="setCheckboxes" @network="updateConnected"/>
+        <survey :key="surveyKey" :uuid="uuid" :submission="audioMetadata.submission" @next="getNext" @checkboxes="setCheckboxes" @network="updateConnected"/>
     </div>
     <div v-if="audioMetadata.url==''">
       <span style="color:red; text-align:center" v-html="showNoAudios"/>
@@ -40,6 +38,7 @@ import Survey from "../components/Survey.vue";
 import axios from 'axios'
 import Vue from 'vue'
 import VueAxios from 'vue-axios'
+import {getters,mutations} from '../globalStore.js'
 
 Vue.use(VueAxios,axios)
 
@@ -75,35 +74,16 @@ export default {
       progress:{totalReceivedMessages: -1},
       connected: true,
       audioKey: 0,
+      surveyKey: 0,
+      navKey:0,
       showModal: false,
       message: '',
       checkboxes:[],
-      form: {},
-      programs: [{
-        code:"CARE-ETH-GIRLS",
-        name:"CARE Ethiopia Girls",
-        languages:[{
-          code:"aar",
-          name:"Afar af"
-        }],
-        deployments:[1]
-      },{
-        code:"CARE-ETH-BOYS",
-        name:"CARE Ethiopia Boys",
-        languages:[{
-          code:"aar",
-          name:"Afar af"
-        }],
-        deployments:[1]
-      }],
-      context: {
-        selectedProgramCode:"CARE-ETH-GIRLS",
-        selectedDeployment:1,
-        selectedLanguageCode:"aar"
-      }
+      form: {}
     }
   },
   methods: {
+    ...mutations,
     getNext() {
       if (this.nextUUID != null) {
         this.$emit("next");
@@ -114,7 +94,7 @@ export default {
     },
     updateUrl() {  
       const request = "https://ckz0f72fjf.execute-api.us-west-2.amazonaws.com/default/ufDataService?"
-          + "email=" + this.$route.query.email
+          + "email=" + this.email
           + "&program=" + this.context.selectedProgramCode
           + "&deployment=" + this.context.selectedDeployment
           + "&language=" + this.context.selectedLanguageCode
@@ -157,40 +137,14 @@ export default {
     escape() {
       this.$refs.audio.setAudioFocus();
     },
-    updatedProgram(programCode) {
-      this.context.selectedProgramCode = programCode;
-      this.context.selectedLanguageCode = this.languages[0].code;
-      this.context.selectedDeployment = this.deployments[0];
+    contextChanged() {      
       this.uuid='';
-      this.$router.push({ path: this.$route.path+'?email='+this.$route.query.email+'&program='+this.context.selectedProgramCode+'&language='+this.context.selectedLanguageCode+'&deployment='+this.context.selectedDeployment});
       this.updateUrl();
+      this.surveyKey += 1;
     },
-    updatedLanguage(languageCode) {
-      this.context.selectedLanguageCode = languageCode;
-      this.$router.push({ path: this.$route.path+'?email='+this.$route.query.email+'&program='+this.context.selectedProgramCode+'&language='+this.context.selectedLanguageCode+'&deployment='+this.context.selectedDeployment});
-      this.uuid='';
-      this.updateUrl();
-    },
-    updatedDeployment(deployment) {
-      this.context.selectedDeployment = deployment;
-      this.$router.push({ path: this.$route.path+'?email='+this.$route.query.email+'&program='+this.context.selectedProgramCode+'&language='+this.context.selectedLanguageCode+'&deployment='+this.context.selectedDeployment});
-      this.uuid='';
-      this.updateUrl();
-    }
   },
   computed: {
-    deployments() {
-      var program = this.programs.filter((p)=>{
-        return p.code==this.context.selectedProgramCode;
-        });
-      return program[0].deployments;
-    },
-    languages() {
-      var program = this.programs.filter((p)=>{
-        return p.code==this.context.selectedProgramCode;
-        });
-      return program[0].languages;
-    },
+    ...getters,
     showNoAudios() {
       let message="NONE";
       if (this.$route.path=='/review' && ((this.uuid == '') || (this.uuid==null))) {
@@ -231,9 +185,9 @@ export default {
   },
    created() {
     if(this.$route.query.program) {
-      this.context.selectedProgramCode=this.$route.query.program;
-      this.context.selectedLanguageCode=this.$route.query.language;
-      this.context.selectedDeployment=this.$route.query.deployment;
+      this.setProgram(this.$route.query.program);
+      this.setLanguage(this.$route.query.language);
+      this.setDeployment(this.$route.query.deployment);
     }
   },
 };

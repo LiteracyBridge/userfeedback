@@ -2,13 +2,16 @@
   <div>
     <div class="navbar grid grid-cols-10 justify-items-start content-end">
       <span class="text-3xl col-start-2 col-span-1 row-start-1 row-span-1 pb-0">AMPLIO</span>
-      <router-link class="pt-4 text-2xl col-start-3 col-span-1 row-start-1 row-span-1" :to="'/analyze?email='+email+'&program='+programCode+'&language='+languageCode+'&deployment='+deployment">
+      <router-link class="pt-4 text-2xl col-start-3 col-span-1 row-start-1 row-span-1" to="/analyze">
         Analyze
       </router-link>
-      <router-link class="pt-4 text-2xl col-start-4 col-span-1 row-start-1 row-span-1" :to="'/review?email='+email+'&program='+programCode+'&language='+languageCode+'&deployment='+deployment">
+      <router-link class="pt-4 text-2xl col-start-4 col-span-1 row-start-1 row-span-1" to="/review">
         Review
       </router-link>
-      <select v-model="programCode" @change="$emit('progChanged',programCode)" class="col-start-7 col-span-2 justify-self-end my-4 outline-grey text-black text-lg w-64">
+      <router-link class="pt-4 text-2xl col-start-5 col-span-1 row-start-1 row-span-1" to="/admin">
+        Admin
+      </router-link>
+      <select :value="context.selectedProgramCode" @change="programChanged" class="col-start-7 col-span-2 justify-self-end my-4 outline-grey text-black text-lg w-64">
         <option v-for="program in programs" :value="program.code" :key="program.code">
           <span> {{program.name}}</span>
         </option>
@@ -17,15 +20,18 @@
     </div>
     <div class="grid grid-cols-10 justify-items-start content-end pb-8">
       <div v-if="allResponsesLink" @click="$emit('all')" class="row-start-2 col-start-3 col-span-2 cursor-pointer pt-4 text-2xl underline" style="color:#0000ee;font-weight:bold" >
-          View all responses    
+          View all    
+      </div>
+      <div v-if="email != loginEmail" class="row-start-2 col-start-4 col-span-1 cursor-pointer pt-4 text-small">
+          {{email}}    
       </div>
       <div class="row-start-2 col-start-5 col-span-4 justify-self-end pt-4">
           Deployment 
-          <select v-model="deployment" class="outline-grey w-16 mr-8" @change="$emit('deplChanged',deployment)">
+          <select :value="context.selectedDeployment" class="outline-grey w-16 mr-8" @change="deploymentChanged">
               <option v-for="deployment in deployments" :value="deployment" :key="deployment"><span> {{deployment}}</span></option>
           </select>
           Language 
-          <select v-model="languageCode" class="outline-grey" @change="$emit('langChanged',languageCode)">
+          <select :value="context.selectedLanguageCode" class="outline-grey" @change="languageChanged">
               <option v-for="language in languages" :value="language.code" :key="language.code"><span> {{language.name}}</span></option>
           </select>
       </div>          
@@ -34,18 +40,33 @@
 </template>
 <script>
 import { Auth } from 'aws-amplify';
-
+import {getters, mutations} from '../globalStore.js'
 export default ({
     name: "NavBar",
-    props: ["email","programs","selectedProgramCode","deployments","languages","selectedDeployment","selectedLanguageCode","allResponsesLink"],
+    props: ["allResponsesLink"],
     data() {
       return {
-        programCode: '',      
-        deployment:'',
-        languageCode:''
         }
     },
     methods: {
+        ...mutations,
+        programChanged(programCode) {
+          this.setProgram(programCode.target.value);
+          this.setDeployment(this.deployments[0]);
+          this.setLanguage(this.languages[0].code);
+          this.$emit('contextChanged')
+        },
+        deploymentChanged(deployment) {
+          this.setDeployment(deployment.target.value);
+          if (!this.languages.map(l=>l.code).includes(this.context.selectedLanguageCode)) {
+            this.context.selectedLanguageCode = this.languages[0].code;
+          }
+          this.$emit('contextChanged')
+        },
+        languageChanged(language) {
+          this.setLanguage(language.target.value)
+          this.$emit('contextChanged')
+        },
         async logout() {
             try {
                 await Auth.signOut();
@@ -56,12 +77,22 @@ export default ({
         },
 
     },
-    mounted() {
-        this.programCode = this.selectedProgramCode;
-        this.deployment = this.selectedDeployment;
-        this.languageCode = this.selectedLanguageCode;
-    },
     computed: {
+        ...getters,
+        deployments() {
+          // console.log("deployments computed:");
+          // console.log(this.programs);
+          // console.log(this.context);
+            let deployments = this.programs.filter(p=>p.code==this.context.selectedProgramCode)[0]
+                                        .deployments.map(d=>d.number);
+          return deployments;
+        },
+        languages() {
+          let program = this.programs.filter(p=>p.code==this.context.selectedProgramCode)[0];
+          let languageCodes = program.deployments.filter(d=>d.number==this.context.selectedDeployment)[0].languages;
+          let languages = program.languages.filter(l=>languageCodes.includes(l.code));
+          return languages;
+        },
         navRoutes() {
             var navRoutes = [];
             for (var route of this.$router.options.routes) {
