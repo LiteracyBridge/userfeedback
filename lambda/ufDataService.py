@@ -7,6 +7,7 @@ import boto3 as boto3
 import pg8000.native
 from botocore.exceptions import ClientError
 from pg8000 import Connection, Cursor
+from amplio.rolemanager import manager
 
 MINIMUM_SECONDS_FILTER = 5   # filters out any UF messages of less than this # of seconds
 MAXIMUM_MINUTES_CHECKOUT = 5  # re-issues the same UUID after this many minutes if the form hasn't yet been submitted
@@ -97,6 +98,96 @@ def get_db_connection() -> Connection:
 
 ########################################################################################################################
 
+def get_last_program_deployment_language(connection,email):
+    command = '''SELECT programid,deploymentnumber,language 
+                    FROM uf_analysis a
+                    JOIN uf_messages m
+                    ON a.message_uuid=m.message_uuid 
+                    WHERE analyst_email = :email 
+                    ORDER BY submit_time DESC
+                    LIMIT 1'''
+    sqlLast = connection.run(command,email=email)
+    if len(sqlLast) == 1:
+        context = {}
+        context['selectedProgramCode']=sqlLast[0][0]
+        context['selectedDeployment']=sqlLast[0][1]
+        context['selectedLanguageCode']=sqlLast[0][2]
+    else:
+        context = None
+    return context
+
+def get_program_list(connection,email):
+    manager.open_tables()
+    programsAuthorized = "'"+"','".join(manager.get_programs_for_user(email.lower()))+"'"
+    command = '''SELECT DISTINCT p.projectcode, p.project, COALESCE(m.deploymentnumber, q.deploymentnumber), l.languagecode, l.language
+                    FROM languages l
+                    JOIN projects p ON p.projectcode=l.projectcode
+                    LEFT JOIN uf_messages m ON m.programid = p.projectcode and l.languagecode=m.language
+					LEFT JOIN uf_questions q ON q.programid = p.projectcode and l.languagecode=q.language	
+					WHERE m.deploymentnumber is not null OR q.deploymentnumber is not null
+                    AND p.active AND p.projectcode IN ('''
+    command += programsAuthorized 
+    command += ") ORDER BY p.projectcode,COALESCE(m.deploymentnumber, q.deploymentnumber),l.language"
+    rows = connection.run(command)
+    programs = []
+    program = {}
+    deployment = {}
+    lastDeployment = None
+    
+    for row in rows:
+        program_code = row[0]
+        program_name = row[1]
+        deployment_number = row[2]
+        language_code = row[3]
+        language_name = row[4]
+        if len(program) > 0 and program['code'] == program_code:
+            if deployment_number == deployment['number']:
+                deployment['languages'].append(language_code)
+            else:
+                deployment = {}
+                deployment['number'] = deployment_number
+                deployment['languages'] = [language_code]
+                program['deployments'].append(deployment)
+            if language_code not in map(lambda l:l['code'], program['languages']):
+                language = {}
+                language['code'] = language_code
+                language['name'] = language_name
+                program['languages'].append(language)
+        else:
+            program = {}
+            program['code'] = program_code                
+            program['name'] = program_name
+
+            deployment = {}
+            deployment['number'] = deployment_number
+            deployment['languages'] = [language_code]
+            program['deployments'] = [deployment]
+
+            language = {}
+            language['code'] = language_code
+            language['name'] = language_name
+            program['languages'] = [language]
+
+            programs.append(program)
+    
+    if len(rows) == 0:
+        programs = None
+
+    context = get_last_program_deployment_language(connection,email)
+    if context is None and programs is not None:
+        context = {}
+        context['selectedProgramCode'] = programs[0]['code']
+        context['selectedDeployment'] = programs[0]['deployments'][0]['number']
+        context['selectedLanguageCode']= programs[0]['deployments'][0]['languages'][0]
+
+    all_data = {}
+    if programs is not None:
+        all_data['programs'] = programs
+    if context is not None:
+        all_data['context'] = context
+    return all_data
+
+
 def get_submissions_list(connection, program, deployment_number, language, email, timezoneOffset):    
     command = '''SELECT a.message_uuid, date_trunc('second',submit_time AT TIME ZONE INTERVAL ' '''+timezoneOffset+''' '),is_useless, 
                     region,district,communityname,groupname 
@@ -143,11 +234,6 @@ def get_submission(connection,uuid):
     responses = {}
     for r in range(1,MAX_RESPONSES*2):
         value = sqlResult[0][r]
-        # convert the text into array, even if array size is 1, in case its a checkbox multi-select (when js needs an array)
-        # if value == None or value == '':
-            # value = []
-        # elif r % 2 == 1: #no need to convert the text fields for "_o"/other 
-            # value = value.split(";")
         responses[columns[r-1]] = value
     submission['responses'] = responses
     return submission
@@ -186,7 +272,6 @@ def get_uuid_metadata(connection,uuid):
     audioMetadata.update({"community":sqlmeta[3]})
     audioMetadata.update({"group":sqlmeta[4]})
     audioMetadata.update({"listening_model":sqlmeta[5]})
-    #audioMetadata = {'audioMetadata':audioMetadata}
     return audioMetadata
 
 def num_from_array(array):
@@ -241,12 +326,11 @@ def get_uf_data(connection, user_email, program, deployment_number, language, uu
         metadata.update({"uuid":uuid})
         all_data["audioMetadata"].update(metadata)
         #form the URL
-        url = "https://downloads.amplio.org/" + program + "/deployment-" + deployment_number
-        url += "/" + language + "/" + uuid + ".mp3"    
+        url = "https://amplio-uf.s3.us-west-2.amazonaws.com/collected/" + program + "/" + deployment_number
+        url += "/" + uuid + ".mp3"    
     all_data["audioMetadata"].update({"url":url}) #empty string url means no more messages to process
     progress=get_progress(connection,user_email,program,deployment_number,language)
     all_data["progress"].update(progress)
-
 
     connection.close
     return all_data    
@@ -255,12 +339,16 @@ def get_uf_data(connection, user_email, program, deployment_number, language, uu
 def lambda_handler(event, context):
     start = time.time_ns()
     uuid = None
+    deployment = None
+    language = None
 
     # Parse out query string params
-    email = event['queryStringParameters']['email']
+    email = event['queryStringParameters']['email'].lower()
     program = event['queryStringParameters']['program']
-    deployment = str(event['queryStringParameters']['deployment'])
-    language = event['queryStringParameters']['language']
+    if 'deployment' in event['queryStringParameters']:
+       deployment = str(event['queryStringParameters']['deployment'])
+    if 'language' in event['queryStringParameters']:
+        language = event['queryStringParameters']['language']
     if 'uuid' in event['queryStringParameters']:
         uuid = event['queryStringParameters']['uuid']
     if 'timezoneOffset' in event['queryStringParameters']:
@@ -268,13 +356,15 @@ def lambda_handler(event, context):
 
     connection: Connection = get_db_connection()
 
+    # Get body of response object, depending on type of request
     if uuid == 'all':
         result = get_submissions_list(connection, program, deployment, language, email, timezoneOffset)
+    elif program == 'all':
+        result = get_program_list(connection,email)
     else:
-        # Get body of response object
         result = get_uf_data(connection, email,program,deployment,language, uuid)
-
-    #Return the response object
+    
+    # Return the response object
     return {
     "statusCode": 200,
     "headers": {"Access-Control-Allow-Origin": "*","Content-Type":"application/json"},
@@ -319,6 +409,22 @@ if __name__ == '__main__':
                         'uuid': 'all',
                         'timezoneOffset': '-420 minutes'}
                         }
-        print(lambda_handler(submit_event3b, None))
+        submit_event4a = {'queryStringParameters': 
+                        {'email':'Abdu.Yimam@care.org',
+                        'program': 'all'}
+                        }
+        submit_event4b = {'queryStringParameters': 
+                        {'email':'cliff@amplio.org',
+                        'program': 'all'}
+                        }
+        submit_event4c = {'queryStringParameters': 
+                        {'email':'mavis.banda@vsoint.org',
+                        'program': 'all'}
+                        }
+        submit_event4d = {'queryStringParameters': 
+                        {'email':'CLIFF@cliffschmidt.com',
+                        'program': 'all'}
+                        }
+        print(lambda_handler(submit_event4b, None))
         
     test_main()
