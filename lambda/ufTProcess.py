@@ -105,7 +105,7 @@ def update_db(command):
 def sql_from_body(body): 
     submit_responses = body['responses']
     set_clause = 'SET is_useless=' + str(body['useless']) + ','
-    set_clause += "submit_time=NOW(),analyst_email='" + body['user_email'] + "',"
+    set_clause += "submit_time=NOW(),analyst_email='" + body['user_email'].lower() + "',"
     for key in submit_responses:
         value = submit_responses[key]
         if isinstance(value,list) and len(value)>0:
