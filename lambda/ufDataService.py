@@ -240,18 +240,23 @@ def get_submission(connection,uuid):
 
     
 
-def get_next_uuid(connection, program, deployment_number, language):
-    command = '''INSERT INTO uf_analysis (message_uuid,start_time)
-                    SELECT message_uuid, NOW() FROM public.uf_messages
+def get_next_uuid(connection, user_email, program, deployment_number, language):
+    command = '''INSERT INTO uf_analysis (message_uuid,start_time,analyst_email)
+                    SELECT message_uuid, NOW(), CAST(:email AS VARCHAR) FROM public.uf_messages
                     WHERE programid = :program and deploymentnumber = :deployment_number
-                    and length_seconds >= :min_sec and language= :language and message_uuid NOT IN 
+                    and length_seconds >= :min_sec and language= :language and 
+                    ( message_uuid IN (SELECT message_uuid FROM uf_analysis
+                    	WHERE submit_time IS NULL AND analyst_email = :email)
+                    	OR
+                     message_uuid NOT IN 
                         (SELECT message_uuid FROM uf_analysis 
                         WHERE submit_time IS NOT NULL 
                         OR start_time > (NOW() - :max_min * interval '1 minute'))
+                    )
                     LIMIT 1
-                ON CONFLICT (message_uuid) DO UPDATE SET start_time=NOW()
+                ON CONFLICT (message_uuid) DO UPDATE SET start_time=NOW(),analyst_email=:email
                 RETURNING message_uuid'''
-    resp = connection.run(command,program=program,deployment_number=deployment_number,language=language,min_sec=MINIMUM_SECONDS_FILTER,max_min=MAXIMUM_MINUTES_CHECKOUT)
+    resp = connection.run(command,email=user_email,program=program,deployment_number=deployment_number,language=language,min_sec=MINIMUM_SECONDS_FILTER,max_min=MAXIMUM_MINUTES_CHECKOUT)
     return resp
 
 
@@ -315,7 +320,7 @@ def get_uf_data(connection, user_email, program, deployment_number, language, uu
     url = "" #empty string means no more messages available to process
     
     if uuid is None:
-        sqlResponse = get_next_uuid(connection,program,deployment_number,language)
+        sqlResponse = get_next_uuid(connection,user_email,program,deployment_number,language)
         if len(sqlResponse) > 0:
             uuid = sqlResponse[0][0]
     else:
@@ -382,9 +387,21 @@ if __name__ == '__main__':
                         }
         submit_event1b = {'queryStringParameters': 
                         {'email':'cliff@amplio.org',
-                        'program': 'CARE-ETH-GIRLS',
+                        'program': 'DEMO',
                         'deployment': 1,
-                        'language': 'aar'}
+                        'language': 'en'}
+                        }
+        submit_event1c = {'queryStringParameters': 
+                        {'email':'cliff@cliffschmidt.com',
+                        'program': 'DEMO',
+                        'deployment': 1,
+                        'language': 'en'}
+                        }
+        submit_event1d = {'queryStringParameters': 
+                        {'email':'clifftest@test.com',
+                        'program': 'DEMO',
+                        'deployment': 1,
+                        'language': 'en'}
                         }
         submit_event2 = {'queryStringParameters': 
                         {'email':'cliff@amplio.org',
@@ -429,6 +446,8 @@ if __name__ == '__main__':
                         {'email':'amplio.demo@gmail.com',
                         'program': 'all'}
                         }
-        print(lambda_handler(submit_event4e, None))
+        print(lambda_handler(submit_event1b, None))
+        print(lambda_handler(submit_event1c, None))
+        print(lambda_handler(submit_event1d, None))
         
     test_main()
