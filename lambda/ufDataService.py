@@ -8,6 +8,7 @@ import pg8000.native
 from botocore.exceptions import ClientError
 from pg8000 import Connection, Cursor
 from amplio.rolemanager import manager
+from functools import reduce
 
 MINIMUM_SECONDS_FILTER = 5   # filters out any UF messages of less than this # of seconds
 MAXIMUM_MINUTES_CHECKOUT = 5  # re-issues the same UUID after this many minutes if the form hasn't yet been submitted
@@ -280,10 +281,13 @@ def get_uuid_metadata(connection,uuid):
     return audioMetadata
 
 def num_from_array(array):
-    if len(array) == 0:
+    if len(array) == 0:  #empty array = 0
         return 0
-    else:
+    elif len(array) == 1: # filtered array value is element 3 
         return array[0][3]
+    else: # if len>1 then add up all values of the 3rd element (needed for not_analyzed)
+        return reduce(lambda y, sum:sum+y,map(lambda x:x[3],array))
+
 
 
 def get_progress(connection,user_email,program,deployment_number,language):
