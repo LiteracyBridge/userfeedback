@@ -68,7 +68,7 @@ export default {
     deleteAnalysis() {
       this.deleteMessage = 'Deleting Analysis...';
 
-      const request = "https://ckz0f72fjf.execute-api.us-west-2.amazonaws.com/default/ufTProcess?"
+      const request = "https://ckz0f72fjf.execute-api.us-west-2.amazonaws.com/default/ufProcess?"
           + "email=" + this.email
           + "&program=" + this.context.selectedProgramCode
           + "&deployment=" + this.context.selectedDeployment
